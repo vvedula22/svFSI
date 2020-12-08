@@ -1035,6 +1035,7 @@
 
       CALL cm%bcast(lStM%volType)
       CALL cm%bcast(lStM%Kpen)
+
       CALL cm%bcast(lStM%isoType)
       CALL cm%bcast(lStM%C01)
       CALL cm%bcast(lStM%C10)
@@ -1047,6 +1048,15 @@
       CALL cm%bcast(lStM%afs)
       CALL cm%bcast(lStM%bfs)
       CALL cm%bcast(lStM%kap)
+
+      CALL cm%bcast(lStM%dmgType)
+      IF (lStM%dmgType .NE. stDmg_NA) THEN
+         CALL cm%bcast(lStM%dmgN)
+         IF (.NOT.ALLOCATED(lStM%dmgPar)) THEN
+            ALLOCATE(lStM%dmgPar(lStM%dmgN))
+         END IF
+         CALL cm%bcast(lStM%dmgPar)
+      END IF
 
       RETURN
       END SUBROUTINE DIST_MATCONSTS

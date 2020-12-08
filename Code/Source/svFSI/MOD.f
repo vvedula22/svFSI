@@ -97,9 +97,10 @@
          INTEGER(KIND=IKIND) :: volType = stVol_NA
 !        Penalty parameter
          REAL(KIND=RKIND) :: Kpen = 0._RKIND
+
 !        Type of constitutive model (isochoric) for struct/FSI
          INTEGER(KIND=IKIND) :: isoType = stIso_NA
-!        Parameters specific to the constitutive model (isochoric)
+!        Parameters specific to the isochoric constitutive model
 !        NeoHookean model (C10 = mu/2)
          REAL(KIND=RKIND) :: C10 = 0._RKIND
 !        Mooney-Rivlin model (C10, C01)
@@ -115,6 +116,14 @@
          REAL(KIND=RKIND) :: bfs = 0._RKIND
 !        Collagen fiber dispersion parameter (Holzapfel model)
          REAL(KIND=RKIND) :: kap = 0._RKIND
+
+!        Parameters for damage model
+!        Type of damage model for struct/FSI
+         INTEGER(KIND=IKIND) :: dmgType = stDmg_NA
+!        No. of damage model parameters
+         INTEGER(KIND=IKIND) :: dmgN = 0
+!        Vector-valued list of damage model parameters
+         REAL(KIND=RKIND), ALLOCATABLE :: dmgPar(:)
       END TYPE stModelType
 
       TYPE viscModelType
@@ -563,6 +572,12 @@
          REAL(KIND=RKIND), ALLOCATABLE :: Nx(:,:,:)
 !        Second derivatives of shape functions - used for shells & IGA
          REAL(KIND=RKIND), ALLOCATABLE :: Nxx(:,:,:)
+!        Array to store structure's damage model variables at
+!        integration point level (old)
+         REAL(KIND=RKIND), ALLOCATABLE :: dmgVo(:,:,:)
+!        Array to store structure's damage model variables at
+!        integration point level (new)
+         REAL(KIND=RKIND), ALLOCATABLE :: dmgVn(:,:,:)
 !        Mesh Name
          CHARACTER(LEN=stdL) :: name
 !        Mesh nodal adjacency

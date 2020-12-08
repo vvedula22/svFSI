@@ -217,8 +217,50 @@
          CALL SYSTEM("ln -f "//TRIM(fName)//" "//TRIM(tmpS))
       END IF
 
+      CALL WRITEDMGV()
+
       RETURN
       END SUBROUTINE WRITERESTART
+!--------------------------------------------------------------------
+!     Write struct damage variables to a restart file if necessary
+      SUBROUTINE WRITEDMGV()
+      USE COMMOD
+      IMPLICIT NONE
+
+      LOGICAL flag
+      CHARACTER(LEN=stdL) fName
+      INTEGER(KIND=IKIND) i, e, g, iM, fid, myID
+
+      flag = .FALSE.
+      DO iM=1, nMsh
+         IF (ALLOCATED(msh(iM)%dmgVn)) THEN
+            flag = .TRUE.
+            EXIT
+         END IF
+      END DO
+
+      IF (flag) THEN
+         fid   = 127
+         myID  = cm%tf()
+         WRITE(fName,'(A,I3.3)') TRIM(appPath)//"dmgHistr.", myID
+
+         OPEN(fid, FILE=TRIM(fName), FORM='UNFORMATTED')
+         DO iM=1, nMsh
+            IF (ALLOCATED(msh(iM)%dmgVn)) THEN
+               DO e=1, msh(iM)%nEl
+                  DO g=1, msh(iM)%nG
+                     DO i=1, 10
+                        WRITE(fid) msh(iM)%dmgVn(i,g,e)
+                     END DO
+                  END DO
+               END DO
+            END IF
+         END DO
+         CLOSE(fid)
+      END IF
+
+      RETURN
+      END SUBROUTINE WRITEDMGV
 !####################################################################
 !     Prints norm of the displacement in the solid domain when being
 !     solved for prestress

@@ -1074,6 +1074,13 @@
                err = "Incompressible struct is not allowed. Use "//
      2            "penalty method or ustruct"
             END IF
+            IF ((lEq%dmn(iDmn)%stM%dmgType .NE. stDmg_NA)) THEN
+               IF ( (lEq%dmn(iDmn)%phys .NE. phys_struct) .OR.
+     2              (nsd .NE. 3) .OR. ibFlag) THEN
+                  err = "Error in choosing damage model. Applies to "//
+     2               "only struct, 3D geometries and no immersed bodies"
+               END IF
+            END IF
          END IF
 
          IF ((lEq%dmn(iDmn)%phys .EQ. phys_fluid)  .OR.
@@ -2383,14 +2390,9 @@ c     2         "can be applied for Neumann boundaries only"
          kap = 0._RKIND
       END IF
 
-      lSt => lPD%get(ctmp, "Constitutive model")
-
 !     Default: NeoHookean model
-      IF (.NOT.ASSOCIATED(lSt)) THEN
-         lDmn%stM%isoType = stIso_nHook
-         lDmn%stM%C10 = mu*0.5_RKIND
-         RETURN
-      END IF
+      ctmp = 'nHK'
+      lSt => lPD%get(ctmp, "Constitutive model")
 
       SELECT CASE (TRIM(ctmp))
       CASE ("lin", "linear")
@@ -2458,14 +2460,12 @@ c     2         "can be applied for Neumann boundaries only"
          lPtr => lSt%get(lDmn%stM%afs, "afs")
          lPtr => lSt%get(lDmn%stM%bfs, "bfs")
 
-      CASE DEFAULT
-         err = "Undefined constitutive model used"
       END SELECT
 
 !     Look for dilational penalty model. HGO uses quadratic penalty model
       lPtr => lPD%get(ctmp, "Dilational penalty model")
       IF (.NOT.ASSOCIATED(lPtr)) wrn =
-     2   "Couldn't find any penalty model"
+     2   "Couldn't find any penalty model. Using ST91 as default"
       SELECT CASE(TRIM(ctmp))
       CASE ("quad", "Quad", "quadratic", "Quadratic")
          lDmn%stM%volType = stVol_Quad
@@ -2484,6 +2484,29 @@ c     2         "can be applied for Neumann boundaries only"
       lDmn%stM%Kpen = kap
       lPtr => lPD%get(rtmp, "Penalty parameter")
       IF (ASSOCIATED(lPtr)) lDmn%stM%Kpen = rtmp
+
+!     Look for damage constitutive model. Only BBH is currently allowed
+      lSt => lPD%get(ctmp, "Damage model")
+      IF (ASSOCIATED(lSt)) THEN
+         SELECT CASE (TRIM(ctmp))
+         CASE ('BBH', 'bbh')
+            lDmn%stM%dmgN = 11
+            ALLOCATE(lDmn%stM%dmgPar(lDmn%stM%dmgN))
+            lDmn%stM%dmgPar(:) = 0._RKIND
+            lPtr => lSt%get(lDmn%stM%dmgPar(1),  "c1")
+            lPtr => lSt%get(lDmn%stM%dmgPar(2),  "eps1")
+            lPtr => lSt%get(lDmn%stM%dmgPar(3),  "eps2")
+            lPtr => lSt%get(lDmn%stM%dmgPar(4),  "alpha1")
+            lPtr => lSt%get(lDmn%stM%dmgPar(5),  "alpha2")
+            lPtr => lSt%get(lDmn%stM%dmgPar(6),  "alpha3")
+            lPtr => lSt%get(lDmn%stM%dmgPar(7),  "ttimini")
+            lPtr => lSt%get(lDmn%stM%dmgPar(8),  "D_inf")
+            lPtr => lSt%get(lDmn%stM%dmgPar(9),  "gamma_inf")
+            lPtr => lSt%get(lDmn%stM%dmgPar(10), "beta_s")
+            lPtr => lSt%get(lDmn%stM%dmgPar(11), "r_s")
+
+         END SELECT
+      END IF
 
       RETURN
       END SUBROUTINE READMATMODEL

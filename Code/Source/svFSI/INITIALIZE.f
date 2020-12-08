@@ -42,7 +42,7 @@
       REAL(KIND=RKIND), INTENT(OUT) :: timeP(3)
 
       LOGICAL :: flag
-      INTEGER(KIND=IKIND) :: i, a, iEq, iDmn, iM, iFa, ierr, nnz, gnnz
+      INTEGER(KIND=IKIND) :: i, a, iEq, iDmn, iM, iFa, nnz, gnnz
       CHARACTER(LEN=stdL) :: fTmp, sTmp
       REAL(KIND=RKIND) :: am
       TYPE(FSILS_commuType) :: communicator
@@ -141,13 +141,13 @@
          IF (eq(iEq)%useTLS) flag = .TRUE.
       END DO
 
-      ierr = 0
-      IF (dFlag) ierr = 1
+      a = 0
+      IF (dFlag) a = 1
 
       i = 0
       IF (cplBC%coupled) i = cplBC%nX
 
-      stamp = (/cm%np(), nEq, nMsh, tnNo, i, tDof, ierr/)
+      stamp = (/cm%np(), nEq, nMsh, tnNo, i, tDof, a/)
 
 !     Calculating the record length
       i = 2*tDof
@@ -164,7 +164,7 @@
       IF (cm%seq()) THEN
          recLn = i
       ELSE
-         CALL MPI_ALLREDUCE(i, recLn, 1, mpint, MPI_MAX, cm%com(), ierr)
+         recLn = cm%reduce(i, MPI_MAX)
       END IF
 
 !     Initialize shell eIEN data structure. Used later in LHSA.
@@ -188,8 +188,7 @@
       std = " Constructing stiffness matrix sparse structure"
       CALL LHSA(nnz)
 
-      gnnz = nnz
-      CALL MPI_ALLREDUCE(nnz, gnnz, 1, mpint, MPI_SUM, cm%com(), ierr)
+      gnnz = cm%reduce(nnz)
       std = " Total number of non-zeros in the LHS matrix: "//gnnz
 
 !     Initialize FSILS structures
@@ -251,6 +250,27 @@
             ALLOCATE(cem%Ya(tnNo))
             cem%Ya = 0._RKIND
          END IF
+      END IF
+
+!     Damage model variables
+      IF (dFlag) THEN
+!        Check all domains if a damage model is used on a mesh and
+!        allocated damage variables on that mesh
+         DO iEq=1, nEq
+            DO iM=1, nMsh
+               IF (ALLOCATED(msh(iM)%dmgVo)) CYCLE
+               DO a=1, msh(iM)%nEl
+                  iDmn = DOMAIN(msh(iM), iEq, a)
+                  IF (eq(iEq)%dmn(iDmn)%stM%dmgType .NE. stDmg_NA) THEN
+                     ALLOCATE(msh(iM)%dmgVo(10,msh(iM)%nG,msh(iM)%nEl))
+                     ALLOCATE(msh(iM)%dmgVn(10,msh(iM)%nG,msh(iM)%nEl))
+                     msh(iM)%dmgVo = 0._RKIND
+                     msh(iM)%dmgVn = 0._RKIND
+                     EXIT
+                  END IF
+               END DO
+            END DO
+         END DO
       END IF
 
       IF (.NOT.resetSim) THEN
@@ -592,8 +612,49 @@
       IF (ANY(tStamp .NE. stamp)) err = "Simulation stamp"//
      2   " does not match with "//fName
 
+      CALL READDMGV()
+
       RETURN
       END SUBROUTINE INITFROMBIN
+!--------------------------------------------------------------------
+      SUBROUTINE READDMGV()
+      USE COMMOD
+      IMPLICIT NONE
+
+      LOGICAL flag
+      CHARACTER(LEN=stdL) fName
+      INTEGER(KIND=IKIND) i, e, g, iM, fid, myID
+
+      flag = .FALSE.
+      DO iM=1, nMsh
+         IF (ALLOCATED(msh(iM)%dmgVo)) THEN
+            flag = .TRUE.
+            EXIT
+         END IF
+      END DO
+
+      IF (flag) THEN
+         fid   = 127
+         myID  = cm%tf()
+         WRITE(fName,'(A,I3.3)') TRIM(appPath)//"dmgHistr.", myID
+
+         OPEN(fid, FILE=TRIM(fName), FORM='UNFORMATTED')
+         DO iM=1, nMsh
+            IF (ALLOCATED(msh(iM)%dmgVn)) THEN
+               DO e=1, msh(iM)%nEl
+                  DO g=1, msh(iM)%nG
+                     DO i=1, 10
+                        READ(fid) msh(iM)%dmgVn(i,g,e)
+                     END DO
+                  END DO
+               END DO
+            END IF
+         END DO
+         CLOSE(fid)
+      END IF
+
+      RETURN
+      END SUBROUTINE READDMGV
 !####################################################################
       SUBROUTINE FINALIZE
       USE COMMOD

@@ -153,7 +153,8 @@ set(FSRCS TYPEMOD.f
          STRUCT.f
          TXT.f
          USTRUCT.f
-         VTKXML.f)
+         VTKXML.f
+         matDamage_dummy.f)
 
 set(F90SRCS vtkComMod.f90
             vtkTypeParams.f90

@@ -40,12 +40,12 @@
       USE COMMOD
       USE ALLFUN
       IMPLICIT NONE
-      TYPE(mshType), INTENT(IN) :: lM
+      TYPE(mshType), INTENT(INOUT) :: lM
       REAL(KIND=RKIND), INTENT(IN) :: Ag(tDof,tnNo), Yg(tDof,tnNo),
      2   Dg(tDof,tnNo)
 
       INTEGER(KIND=IKIND) a, e, g, Ac, eNoN, cPhys, iFn, nFn
-      REAL(KIND=RKIND) w, Jac, ksix(nsd,nsd)
+      REAL(KIND=RKIND) w, Jac, xgp(nsd), hrl(20), ksix(nsd,nsd)
 
       INTEGER(KIND=IKIND), ALLOCATABLE :: ptr(:)
       REAL(KIND=RKIND), ALLOCATABLE :: xl(:,:), al(:,:), yl(:,:),
@@ -104,14 +104,22 @@
             w = lM%w(g) * Jac
             N = lM%N(:,g)
 
+            xgp = 0._RKIND
+            DO a=1, eNoN
+               xgp = xgp + N(a)*xl(:,a)
+            END DO
+
+            hrl(:) = 0._RKIND
+            IF (ALLOCATED(lM%dmgVo)) hrl(1:10) = lM%dmgVo(:,g,e)
+
             pSl = 0._RKIND
             IF (nsd .EQ. 3) THEN
-               CALL STRUCT3D(eNoN, nFn, w, N, Nx, al, yl, dl, bfl, fN,
-     2            pS0l, pSl, ya_l, lR, lK)
+               CALL STRUCT3D(eNoN, nFn, w, xgp, N, Nx, al, yl, dl, bfl,
+     2            fN, pS0l, pSl, ya_l, hrl, lR, lK)
 
             ELSE IF (nsd .EQ. 2) THEN
-               CALL STRUCT2D(eNoN, nFn, w, N, Nx, al, yl, dl, bfl, fN,
-     2            pS0l, pSl, ya_l, lR, lK)
+               CALL STRUCT2D(eNoN, nFn, w, xgp, N, Nx, al, yl, dl, bfl,
+     2            fN, pS0l, pSl, ya_l, hrl, lR, lK)
 
             END IF
 
@@ -123,6 +131,10 @@
                   pSa(Ac)   = pSa(Ac)   + w*N(a)
                END DO
             END IF
+
+!           Update damage variables
+            IF (ALLOCATED(lM%dmgVo)) lM%dmgVn(:,g,e) = hrl(11:20)
+
          END DO ! g: loop
 
 !        Assembly
@@ -143,23 +155,23 @@
       RETURN
       END SUBROUTINE CONSTRUCT_dSOLID
 !####################################################################
-      SUBROUTINE STRUCT3D(eNoN, nFn, w, N, Nx, al, yl, dl, bfl, fN,
-     2   pS0l, pSl, ya_l, lR, lK)
+      SUBROUTINE STRUCT3D(eNoN, nFn, w, xgp, N, Nx, al, yl, dl, bfl, fN,
+     2   pS0l, pSl, ya_l, hrl, lR, lK)
       USE COMMOD
       USE ALLFUN
       IMPLICIT NONE
       INTEGER(KIND=IKIND), INTENT(IN) :: eNoN, nFn
-      REAL(KIND=RKIND), INTENT(IN) :: w, N(eNoN), Nx(3,eNoN),
+      REAL(KIND=RKIND), INTENT(IN) :: w, xgp(3), N(eNoN), Nx(3,eNoN),
      2   al(tDof,eNoN), yl(tDof,eNoN), dl(tDof,eNoN), bfl(3,eNoN),
      3   fN(3,nFn), pS0l(6,eNoN), ya_l(eNoN)
       REAL(KIND=RKIND), INTENT(OUT) :: pSl(6)
-      REAL(KIND=RKIND), INTENT(INOUT) :: lR(dof,eNoN),
+      REAL(KIND=RKIND), INTENT(INOUT) :: hrl(20), lR(dof,eNoN),
      2   lK(dof*dof,eNoN,eNoN)
 
       INTEGER(KIND=IKIND) :: a, b, i, j, k
       REAL(KIND=RKIND) :: rho, dmp, T1, amd, afl, ya_g, fb(3), ud(3),
      2   NxSNx, BmDBm, F(3,3), S(3,3), P(3,3), Dm(6,6), DBm(6,3),
-     3   Bm(6,3,eNoN), CC(3,3,3,3), S0(3,3)
+     3   Bm(6,3,eNoN), S0(3,3)
 
 !     Define parameters
       rho     = eq(cEq)%dmn(cDmn)%prop(solid_density)
@@ -209,8 +221,9 @@
       S0(3,1) = S0(1,3)
       S0(3,2) = S0(2,3)
 
-!     2nd Piola-Kirchhoff tensor (S) and material stiffness tensor (CC)
-      CALL GETPK2CC(eq(cEq)%dmn(cDmn), F, nFn, fN, ya_g, S, CC)
+!     2nd Piola-Kirchhoff tensor (S) and material stiffness tensor in
+!     Voigt notation (Dm)
+      CALL GETPK2CC(eq(cEq)%dmn(cDmn), F, nFn, fN, ya_g, xgp, hrl, S,Dm)
 
 !     Prestress
       pSl(1) = S(1,1)
@@ -226,40 +239,6 @@
 
 !     1st Piola-Kirchhoff tensor (P)
       P = MATMUL(F, S)
-
-!     Convert to Voigt Notation
-      Dm(1,1) = CC(1,1,1,1)
-      Dm(1,2) = CC(1,1,2,2)
-      Dm(1,3) = CC(1,1,3,3)
-      Dm(1,4) = CC(1,1,1,2)
-      Dm(1,5) = CC(1,1,2,3)
-      Dm(1,6) = CC(1,1,3,1)
-
-      Dm(2,2) = CC(2,2,2,2)
-      Dm(2,3) = CC(2,2,3,3)
-      Dm(2,4) = CC(2,2,1,2)
-      Dm(2,5) = CC(2,2,2,3)
-      Dm(2,6) = CC(2,2,3,1)
-
-      Dm(3,3) = CC(3,3,3,3)
-      Dm(3,4) = CC(3,3,1,2)
-      Dm(3,5) = CC(3,3,2,3)
-      Dm(3,6) = CC(3,3,3,1)
-
-      Dm(4,4) = CC(1,2,1,2)
-      Dm(4,5) = CC(1,2,2,3)
-      Dm(4,6) = CC(1,2,3,1)
-
-      Dm(5,5) = CC(2,3,2,3)
-      Dm(5,6) = CC(2,3,3,1)
-
-      Dm(6,6) = CC(3,1,3,1)
-
-      DO a=2, 6
-         DO b=1, a-1
-            Dm(a,b) = Dm(b,a)
-         END DO
-      END DO
 
       DO a=1, eNoN
          Bm(1,1,a) = Nx(1,a)*F(1,1)
@@ -358,23 +337,23 @@
       RETURN
       END SUBROUTINE STRUCT3D
 !####################################################################
-      SUBROUTINE STRUCT2D(eNoN, nFn, w, N, Nx, al, yl, dl, bfl, fN,
-     2   pS0l, pSl, ya_l, lR, lK)
+      SUBROUTINE STRUCT2D(eNoN, nFn, w, xgp, N, Nx, al, yl, dl, bfl, fN,
+     2   pS0l, pSl, ya_l, hrl, lR, lK)
       USE COMMOD
       USE ALLFUN
       IMPLICIT NONE
       INTEGER(KIND=IKIND), INTENT(IN) :: eNoN, nFn
-      REAL(KIND=RKIND), INTENT(IN) :: w, N(eNoN), Nx(2,eNoN),
+      REAL(KIND=RKIND), INTENT(IN) :: w, xgp(2), N(eNoN), Nx(2,eNoN),
      2   al(tDof,eNoN), yl(tDof,eNoN), dl(tDof,eNoN), bfl(2,eNoN),
      3   fN(2,nFn), pS0l(3,eNoN), ya_l(eNoN)
       REAL(KIND=RKIND), INTENT(OUT) :: pSl(3)
-      REAL(KIND=RKIND), INTENT(INOUT) :: lR(dof,eNoN),
+      REAL(KIND=RKIND), INTENT(INOUT) :: hrl(20), lR(dof,eNoN),
      2   lK(dof*dof,eNoN,eNoN)
 
       INTEGER(KIND=IKIND) :: a, b, i, j
       REAL(KIND=RKIND) :: rho, dmp, T1, amd, afl, ya_g, fb(2), ud(2),
      2   NxSNx, BmDBm, F(2,2), S(2,2), P(2,2), Dm(3,3), DBm(3,2),
-     3   Bm(3,2,eNoN), CC(2,2,2,2), S0(2,2)
+     3   Bm(3,2,eNoN), S0(2,2)
 
 !     Define parameters
       rho     = eq(cEq)%dmn(cDmn)%prop(solid_density)
@@ -410,8 +389,9 @@
       END DO
       S0(2,1) = S0(1,2)
 
-!     2nd Piola-Kirchhoff tensor (S) and material stiffness tensor (CC)
-      CALL GETPK2CC(eq(cEq)%dmn(cDmn), F, nFn, fN, ya_g, S, CC)
+!     2nd Piola-Kirchhoff tensor (S) and material stiffness tensor in
+!     Voigt notation (Dm)
+      CALL GETPK2CC(eq(cEq)%dmn(cDmn), F, nFn, fN, ya_g, xgp, hrl, S,Dm)
 
 !     Prestress
       pSl(1) = S(1,1)
@@ -424,20 +404,6 @@
 
 !     1st Piola-Kirchhoff tensor (P)
       P = MATMUL(F, S)
-
-!     Convert to Voigt Notation
-      Dm(1,1) = CC(1,1,1,1)
-      Dm(1,2) = CC(1,1,2,2)
-      Dm(1,3) = CC(1,1,1,2)
-
-      Dm(2,2) = CC(2,2,2,2)
-      Dm(2,3) = CC(2,2,1,2)
-
-      Dm(3,3) = CC(1,2,1,2)
-
-      Dm(2,1) = Dm(1,2)
-      Dm(3,1) = Dm(1,3)
-      Dm(3,2) = Dm(2,3)
 
       DO a=1, eNoN
          Bm(1,1,a) = Nx(1,a)*F(1,1)

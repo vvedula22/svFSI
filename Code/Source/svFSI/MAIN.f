@@ -271,6 +271,13 @@
          Yo = Yn
          IF (dFlag) Do = Dn
          cplBC%xo = cplBC%xn
+
+!        Update damage variables if allocated
+         DO iM=1, nMsh
+            IF (ALLOCATED(msh(iM)%dmgVo)) THEN
+               msh(iM)%dmgVo = msh(iM)%dmgVn
+            END IF
+         END DO
       END DO
 !     End of outer loop
 

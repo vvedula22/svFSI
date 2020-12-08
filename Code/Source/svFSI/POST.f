@@ -515,7 +515,7 @@
      2   nFn
       REAL(KIND=RKIND) w, Jac, detF, Je, ya, Ja, elM, nu, lambda, mu,
      2   trS, vmises, ed(nstd), ksix(nsd,nsd), F(nsd,nsd), S(nsd,nsd),
-     3   P(nsd,nsd), sigma(nsd,nsd), CC(nsd,nsd,nsd,nsd)
+     3   P(nsd,nsd), sigma(nsd,nsd), Dm(nstd,nstd), xgp(nsd), hrl(20)
 
       REAL(KIND=RKIND), ALLOCATABLE :: xl(:,:), dl(:,:), fN(:,:),
      2   pSl(:), Nx(:,:), N(:), sA(:), sF(:,:), sE(:)
@@ -597,6 +597,14 @@
             END DO
             detF = MAT_DET(F, nsd)
 
+            xgp = 0._RKIND
+            DO a=1, eNoN
+               xgp = xgp + N(a)*xl(:,a)
+            END DO
+
+            hrl(:) = 0._RKIND
+            IF (ALLOCATED(lM%dmgVn)) hrl(1:10) = lM%dmgVn(:,g,e)
+
             ed = 0._RKIND
             IF (cPhys .EQ. phys_lElas) THEN
                DO a=1, eNoN
@@ -652,13 +660,14 @@
 
                ELSE IF (cPhys .EQ. phys_ustruct) THEN
                   CALL GETPK2CCdev(eq(iEq)%dmn(cDmn), F, nFn, fN, ya, S,
-     2               CC, Ja)
+     2               Dm, Ja)
                   P = MATMUL(F, S)
                   sigma = MATMUL(P, TRANSPOSE(F))
                   IF (.NOT.ISZERO(detF)) sigma(:,:) = sigma(:,:) / detF
 
                ELSE IF (cPhys .EQ. phys_struct) THEN
-                  CALL GETPK2CC(eq(iEq)%dmn(cDmn), F, nFn, fN, ya, S,CC)
+                  CALL GETPK2CC(eq(iEq)%dmn(cDmn), F, nFn, fN, ya, xgp,
+     2               hrl, S, Dm)
                   sigma = S
 
                END IF

@@ -185,6 +185,10 @@
       INTEGER(KIND=IKIND), PARAMETER :: stVol_NA = 650,
      2   stVol_Quad = 651, stVol_ST91 = 652, stVol_M94 = 653
 !--------------------------------------------------------------------
+!     Type of damage model for structures:
+!     BBH (Balzani-Brinkhues-Holzapfel)
+      INTEGER(KIND=IKIND), PARAMETER :: stDmg_NA = 649, stDmg_BBH = 648
+!--------------------------------------------------------------------
 !     Type of fluid viscosity: constant, Carreau-Yasuda shear-thinning
 !     model, Cassons non-Newtonian model
       INTEGER(KIND=IKIND), PARAMETER :: viscType_NA = 699,
