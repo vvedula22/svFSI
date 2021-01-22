@@ -2497,7 +2497,8 @@ c     2         "can be applied for Neumann boundaries only"
       IF (ASSOCIATED(lSt)) THEN
          SELECT CASE (TRIM(ctmp))
          CASE ('BBH', 'bbh')
-            lDmn%stM%dmgN = 11
+            lDmn%stM%dmgType = stDmg_BBH
+            lDmn%stM%dmgN    = 11
             ALLOCATE(lDmn%stM%dmgPar(lDmn%stM%dmgN))
             lDmn%stM%dmgPar(:) = 0._RKIND
             lPtr => lSt%get(lDmn%stM%dmgPar(1),  "c1")
