@@ -1152,16 +1152,16 @@ c     2      (EXP(stM%khs*Ess) + EXP(-stM%khs*Ess) + 2.0_RKIND)
      2                     TEN_SYMMPROD(gi_x, gi_x, 2))
 
       CASE (stIso_MR)
-         SN  = (gi_0 - Jg2i*gi_x)
+         SN  = gi_0 - Jg2i*gi_x
          CCN = 2._RKIND*Jg2i*(TEN_DYADPROD(gi_x, gi_x, 2) +
      2                     TEN_SYMMPROD(gi_x, gi_x, 2))
-
+ 
          S   = stM%C10*SN + stM%C01*Jg2i* (gi_0 - I1*gi_x)
      2       + stM%C01/Jg2i*gi_x
          CC  = (stM%C10 + stM%C01*I1) * CCN - 2._RKIND*stM%C01 *
      2         Jg2i * (TEN_DYADPROD(gi_0, gi_x, 2) +
      3         TEN_DYADPROD(gi_x, gi_0, 2)) + 2._RKIND*stM%C01 /
-     4         Jg2i *(TEN_DYADPROD(gi_x, gi_0, 2) -
+     4         Jg2i *(TEN_DYADPROD(gi_x, gi_x, 2) -
      5         TEN_SYMMPROD(gi_x, gi_x, 2))
 
 !     HO (Holzapfel-Ogden) model for myocardium with full invariants
