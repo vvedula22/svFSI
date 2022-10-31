@@ -1898,34 +1898,6 @@
          IF (ASSOCIATED(lPtr)) lBc%tauB(2) = rtmp
       END IF
 
-!     Read BCs for shells with triangular elements. Not necessary for
-!     NURBS elements
-      lPtr => list%get(ctmp,"CST shell BC type")
-      IF (ASSOCIATED(lPtr)) THEN
-         SELECT CASE (ctmp)
-         CASE ("Fixed", "fixed", "Clamped", "clamped")
-            lBc%bType = IBSET(lBc%bType,bType_fix)
-            IF (.NOT.BTEST(lBc%bType,bType_Dir)) err = "Fixed BC "//
-     2         "can be applied for Dirichlet boundaries only"
-         CASE ("Hinged", "hinged")
-            lBc%bType = IBSET(lBc%bType,bType_hing)
-            IF (.NOT.BTEST(lBc%bType,bType_Dir)) err = "Hinged BC "//
-     2         "can be applied for Dirichlet boundaries only"
-         CASE ("Free", "free")
-            lBc%bType = IBSET(lBc%bType,bType_free)
-            IF (.NOT.BTEST(lBc%bType,bType_Neu)) err = "Free BC "//
-     2         "can be applied for Neumann boundaries only"
-!        Symm BC needs to be verified
-c         CASE ("Symm", "symm", "Symmetric", "symmetric")
-c            lBc%bType = IBSET(lBc%bType,bType_symm)
-c            IF (.NOT.BTEST(lBc%bType,bType_Neu)) err = "Symm BC "//
-c     2         "can be applied for Neumann boundaries only"
-         CASE DEFAULT
-            err = TRIM(list%ping("Shell BC type",lPtr))//
-     2         " Unexpected Shell BC type"
-         END SELECT
-      END IF
-
 !     For Neumann BC, is load vector changing with deformation
 !     (follower pressure)
       lBc%flwP = .FALSE.
