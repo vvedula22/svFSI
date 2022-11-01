@@ -1532,7 +1532,6 @@ c     2      (EXP(stM%khs*Ess) + EXP(-stM%khs*Ess) + 2.0_RKIND)
      3              * EXP(stM%b2*Eff*Eff) * TEN_DYADPROD(flM, flM, 3)
             END IF
 
-
          CASE DEFAULT
             err = "Undefined material constitutive model"
 
