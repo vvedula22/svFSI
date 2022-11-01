@@ -1116,8 +1116,7 @@ c     2      (EXP(stM%khs*Ess) + EXP(-stM%khs*Ess) + 2.0_RKIND)
       INTEGER a, b, iFn
       REAL(KIND=RKIND) :: Jg2i, I1, mu, gi_0(2,2), gi_x(2,2), S(2,2),
      2   CC(2,2,2,2), SN(2,2), CCN(2,2,2,2), Inv4, Inv6, Inv8, Eff, Ess,
-     3   Efs, flM(2,2), c4f, c4s, dc4f, dc4s, d1, fl(2,2,nfd), Hfs(2,2),
-     4   EI1, g1, g2
+     3   Efs, flM(2,2), d1, fl(2,2,nfd), Hfs(2,2), EI1, g1, g2
       TYPE(stModelType) :: stM
 
       Sml  = 0._RKIND
@@ -1191,14 +1190,6 @@ c     2      (EXP(stM%khs*Ess) + EXP(-stM%khs*Ess) + 2.0_RKIND)
          Ess  = Inv6 - 1._RKIND
          Efs  = Inv8
 
-!        Smoothed heaviside function
-         c4f  = 1._RKIND / (1._RKIND + EXP(-stM%khs*Eff))
-         c4s  = 1._RKIND / (1._RKIND + EXP(-stM%khs*Ess))
-
-!        Approx. derivative of smoothed heaviside function
-         dc4f = 0.25_RKIND*stM%khs*EXP(-stM%khs*ABS(Eff))
-         dc4s = 0.25_RKIND*stM%khs*EXP(-stM%khs*ABS(Ess))
-
 !        Add isochoric stress and stiffness contribution
          EI1  = I1 + Jg2i - 3._RKIND
          SN   = (gi_0 - Jg2i*gi_x)
@@ -1221,8 +1212,6 @@ c     2      (EXP(stM%khs*Ess) + EXP(-stM%khs*Ess) + 2.0_RKIND)
 !        Fiber
          IF (Eff > 0._RKIND) THEN
             flM = fl(:,:,1)
-            ! S  = S + 2._RKIND*stM%aff*Eff*flM
-            ! CC = CC + 4._RKIND*stM%aff*TEN_DYADPROD(flM, flM, 2)
             g1 = 2._RKIND*stM%aff*EXP(stM%bff*Eff*Eff)
             S  = S  + g1*Eff*flM
             g2 = g1*2._RKIND*(1._RKIND + 2._RKIND*stM%bff*Eff*Eff)
@@ -1325,7 +1314,7 @@ c     2      (EXP(stM%khs*Ess) + EXP(-stM%khs*Ess) + 2.0_RKIND)
      3   fl(2,2,nfd), C1, C2, J43, Gi4AS(3,3,3,3), I2, I2ij(3,3),
      4   I2ijkl(3,3,3,3), Cikl(3,3,3,3), Inv4, Inv6, Inv8, Eff, Ess,
      5   Efs, c4f, c4s, dc4f, dc4s, d1, g1, g2, Hfs(3,3), SN(3,3),
-     6   CCN(3,3,3,3), flM(3,3)
+     6   CCN(3,3,3,3), flM(3,3), Cx(3,3) 
       TYPE(stModelType) :: stM
 
       Sml  = 0._RKIND
@@ -1371,6 +1360,11 @@ c     2      (EXP(stM%khs*Ess) + EXP(-stM%khs*Ess) + 2.0_RKIND)
          Ci(3,3) = 1._RKIND/C33
          Ci(1:2,1:2) = gi_x(:,:)
 
+!        Curvilinear Cauchy-Green deformation tensor 
+         Cx(:,:) = 0._RKIND
+         Cx(3,3) = C33
+         Cx(1:2,1:2) = gg_x(:,:)
+
 !        Contribution from dilational penalty terms to S and CC
          pJ  = 0.5_RKIND*kap*(J2 - 1._RKIND)
          plJ = kap*J2
@@ -1387,20 +1381,21 @@ c     2      (EXP(stM%khs*Ess) + EXP(-stM%khs*Ess) + 2.0_RKIND)
      4                       TEN_DYADPROD(Ci, gi_0, 3))
 
          CASE (stIso_MR)
-!           2nd Piola Kirchhoff stress
             C1  = stM%C10
             C2  = stM%C01
             J43 = J2**(-f23)
 
+!           Cx invariant I2 and its 1st & 2nd derivatives 
             I2ijkl = TEN_DYADPROD(gi_0, gi_0, 3)
      2             - TEN_SYMMPROD(gi_0, gi_0, 3)
-            I2ij   = TEN_MDDOT(I2ijkl, Ci, 3)
+            I2ij   = TEN_MDDOT(I2ijkl, Cx, 3)
 
             Gi4AS  = TEN_ASYMPROD12(gi_0, gi_0, 3)
-            I2     = MAT_DDOT(Ci, TEN_MDDOT(Gi4AS, Ci, 3), 3)
-            ! I2  = MAT_DDOT(Ci, I2ij, 3)
+            I2     = MAT_DDOT(Cx, TEN_MDDOT(Gi4AS, Cx, 3), 3)
+
             Cikl   = - TEN_SYMMPROD(Ci, Ci, 3)
 
+!           2nd Piola Kirchhoff stress
             S  = C1*J23*(gi_0 - trC3*Ci) + pJ*Ci
      2         + C2*J43*(I2ij - f23*I2*Ci)
 
@@ -1412,7 +1407,7 @@ c     2      (EXP(stM%khs*Ess) + EXP(-stM%khs*Ess) + 2.0_RKIND)
 
             CC = CC + 2._RKIND*f23*C2*J43*(
      2               TEN_DYADPROD((f23*I2*Ci-I2ij), Ci, 3) - I2*Cikl
-     3                - TEN_DYADPROD(Ci, I2ij, 3) + I2ijkl)
+     3                - TEN_DYADPROD(Ci, I2ij, 3) + 1.5_RKIND*I2ijkl)
 
          CASE (stIso_HO_ma)
             IF (nfd .NE. 2) err = "Min fiber directions not defined"//
@@ -1439,16 +1434,7 @@ c     2      (EXP(stM%khs*Ess) + EXP(-stM%khs*Ess) + 2.0_RKIND)
             Ess  = Inv6 - 1._RKIND
             Efs  = Inv8
 
-    !        Smoothed heaviside function
-            c4f  = 1._RKIND / (1._RKIND + EXP(-stM%khs*Eff))
-            c4s  = 1._RKIND / (1._RKIND + EXP(-stM%khs*Ess))
-
-    !        Approx. derivative of smoothed heaviside function
-            dc4f = 0.25_RKIND*stM%khs*EXP(-stM%khs*ABS(Eff))
-            dc4s = 0.25_RKIND*stM%khs*EXP(-stM%khs*ABS(Ess))
-
     !        Add isochoric stress and stiffness contribution
-            ! EI1  = I1 + Jg2i - 3._RKIND
             d1 = stM%a*J23*EXP(3._RKIND*stM%b*(trC3*J23 - 1._RKIND))
             SN = (gi_0 - trC3*Ci)
             S  = d1*SN + pJ*Ci
@@ -1474,8 +1460,6 @@ c     2      (EXP(stM%khs*Ess) + EXP(-stM%khs*Ess) + 2.0_RKIND)
             flM = 0._RKIND
             IF (Eff > 0._RKIND) THEN
                 flM(1:2,1:2) = fl(:,:,1)
-                ! S  = S + 2._RKIND*stM%aff*Eff*flM
-                ! CC = CC + 4._RKIND*stM%aff*TEN_DYADPROD(flM, flM, 2)
                 g1 = 2._RKIND*stM%aff*EXP(stM%bff*Eff*Eff)
                 S  = S  + g1*Eff*flM
                 g2 = g1*2._RKIND*(1._RKIND + 2._RKIND*stM%bff*Eff*Eff)
@@ -1560,8 +1544,6 @@ c     2      (EXP(stM%khs*Ess) + EXP(-stM%khs*Ess) + 2.0_RKIND)
             END DO
          END DO
       END DO
-
-      g33 = C33
 
 !     Convert the in-plane components to Voigt notation
       Sml(1) = S(1,1)
