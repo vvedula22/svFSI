@@ -1116,7 +1116,8 @@ c     2      (EXP(stM%khs*Ess) + EXP(-stM%khs*Ess) + 2.0_RKIND)
       INTEGER a, b, iFn
       REAL(KIND=RKIND) :: Jg2i, I1, mu, gi_0(2,2), gi_x(2,2), S(2,2),
      2   CC(2,2,2,2), SN(2,2), CCN(2,2,2,2), Inv4, Inv6, Inv8, Eff, Ess,
-     3   Efs, flM(2,2), d1, fl(2,2,nfd), Hfs(2,2), EI1, g1, g2
+     3   Efs, flM(2,2), d1, fl(2,2,nfd), Hfs(2,2), EI1, g1, g2, kap, 
+     4   Inv1, rexp, Hff(2,2), Hss(2,2)
       TYPE(stModelType) :: stM
 
       Sml  = 0._RKIND
@@ -1266,6 +1267,63 @@ c     2      (EXP(stM%khs*Ess) + EXP(-stM%khs*Ess) + 2.0_RKIND)
 
          END IF
 
+!     HGO (Holzapfel-Gasser-Ogden) model for arteries with full
+!     invariants for the anisotropy terms (modified-anisotropy)
+      CASE (stIso_HGO_ma)
+         IF (nfd .LT. 2) err = "Min fiber directions not defined for "//
+     2      "HGO material model (2)"
+         kap  = stM%kap
+
+         SN = (gi_0 - Jg2i*gi_x)
+         CCN= 2._RKIND*Jg2i*(TEN_DYADPROD(gi_x, gi_x, 2) +
+     2                       TEN_SYMMPROD(gi_x, gi_x, 2))
+
+         DO iFn=1, nfd
+            fl(1,1,iFn) = fNa0(1,iFn)*fNa0(1,iFn)
+            fl(1,2,iFn) = fNa0(1,iFn)*fNa0(2,iFn)
+            fl(2,1,iFn) = fNa0(2,iFn)*fNa0(1,iFn)
+            fl(2,2,iFn) = fNa0(2,iFn)*fNa0(2,iFn)
+         END DO
+
+         Inv1 = I1 + Jg2i 
+         Inv4 = gg_x(1,1)*fl(1,1,1) + gg_x(1,2)*fl(1,2,1)
+     2          + gg_x(2,1)*fl(2,1,1) + gg_x(2,2)*fl(2,2,1)
+         Inv6 = gg_x(1,1)*fl(1,1,2) + gg_x(1,2)*fl(1,2,2)
+     2          + gg_x(2,1)*fl(2,1,2) + gg_x(2,2)*fl(2,2,2)
+
+         Eff  = kap*Inv1 + (1._RKIND-3._RKIND*kap)*Inv4 - 1._RKIND
+         Ess  = kap*Inv1 + (1._RKIND-3._RKIND*kap)*Inv6 - 1._RKIND
+
+!        Isochoric and volumetric contribution to stress and stiffness
+!        tensors
+         S  = stM%C10 * SN
+         CC = stM%C10 * CCN
+
+!        Anisotropic contribution to stress and stiffness tensors
+!        Fiber-Fiber interaction + additional fiber reinforcement
+         flM = fl(:,:,1)
+         rexp = EXP(stM%bff*Eff*Eff)
+         g1   = 2._RKIND*stM%aff*Eff*rexp
+         Hff  = kap*SN + (1._RKIND-3._RKIND*kap)*flM
+         S    = S + g1*Hff
+
+         g1   = 1._RKIND + (2._RKIND*stM%bff*Eff*Eff)
+         g1   = 4._RKIND*stM%aff*g1*rexp
+         g2   = 2._RKIND*stM%aff*Eff*rexp
+         CC   = CC + (g1*TEN_DYADPROD(Hff, Hff, 2)) + g2*kap*CCN
+
+!        Sheet-Sheet interaction + additional cross-fiber stress
+         flM = fl(:,:,2)
+         rexp = EXP(stM%bss*Ess*Ess)
+         g1   = 2._RKIND*stM%ass*Ess*rexp
+         Hss  = kap*SN + (1._RKIND-3._RKIND*kap)*flM
+         S    = S + g1*Hss
+
+         g1   = 1._RKIND + (2._RKIND*stM%bss*Ess*Ess)
+         g1   = 4._RKIND*stM%ass*g1*rexp
+         g2   = 2._RKIND*stM%ass*Ess*rexp
+         CC   = CC + (g1*TEN_DYADPROD(Hss, Hss, 2)) + g2*kap*CCN
+
       CASE DEFAULT
          err = "Undefined material constitutive model"
       END SELECT
@@ -1314,7 +1372,8 @@ c     2      (EXP(stM%khs*Ess) + EXP(-stM%khs*Ess) + 2.0_RKIND)
      3   fl(2,2,nfd), C1, C2, J43, Gi4AS(3,3,3,3), I2, I2ij(3,3),
      4   I2ijkl(3,3,3,3), Cikl(3,3,3,3), Inv4, Inv6, Inv8, Eff, Ess,
      5   Efs, c4f, c4s, dc4f, dc4s, d1, g1, g2, Hfs(3,3), SN(3,3),
-     6   CCN(3,3,3,3), flM(3,3), Cx(3,3) 
+     6   CCN(3,3,3,3), flM(3,3), Cx(3,3), Hff(3,3), Hss(3,3), rexp, 
+     7   Inv1  
       TYPE(stModelType) :: stM
 
       Sml  = 0._RKIND
@@ -1516,6 +1575,65 @@ c     2      (EXP(stM%khs*Ess) + EXP(-stM%khs*Ess) + 2.0_RKIND)
      3              * EXP(stM%b2*Eff*Eff) * TEN_DYADPROD(flM, flM, 3)
             END IF
 
+!        HGO (Holzapfel-Gasser-Ogden) model for arteries with full
+!        invariants for the anisotropy terms (modified-anisotropy)
+         CASE (stIso_HGO_ma)
+            IF (nfd .LT. 2) err = "Min fiber directions not defined "//
+     2      "for HGO material model (2)"
+            kap  = stM%kap
+
+            SN = (gi_0 - trC3*Ci)
+            CCN = f23*trC3*TEN_DYADPROD(Ci, Ci, 3)
+     2         + trC3*2._RKIND*TEN_SYMMPROD(Ci, Ci, 3)
+     3         - f23*(TEN_DYADPROD(gi_0, Ci, 3)
+     4         + TEN_DYADPROD(Ci, gi_0, 3))
+
+            DO iFn=1, nfd
+                fl(1,1,iFn) = fNa0(1,iFn)*fNa0(1,iFn)
+                fl(1,2,iFn) = fNa0(1,iFn)*fNa0(2,iFn)
+                fl(2,1,iFn) = fNa0(2,iFn)*fNa0(1,iFn)
+                fl(2,2,iFn) = fNa0(2,iFn)*fNa0(2,iFn)
+            END DO
+
+            Inv1 = 3._RKIND*trC3 
+            Inv4 = gg_x(1,1)*fl(1,1,1) + gg_x(1,2)*fl(1,2,1)
+     2          + gg_x(2,1)*fl(2,1,1) + gg_x(2,2)*fl(2,2,1)
+            Inv6 = gg_x(1,1)*fl(1,1,2) + gg_x(1,2)*fl(1,2,2)
+     2          + gg_x(2,1)*fl(2,1,2) + gg_x(2,2)*fl(2,2,2)
+
+            Eff  = kap*Inv1 + (1._RKIND-3._RKIND*kap)*Inv4 - 1._RKIND
+            Ess  = kap*Inv1 + (1._RKIND-3._RKIND*kap)*Inv6 - 1._RKIND
+
+    !       Isochoric and volumetric contribution to stress and stiffness
+    !       tensors
+            S  = stM%C10 * SN
+            CC = stM%C10 * CCN
+
+    !       Anisotropic contribution to stress and stiffness tensors
+    !       Fiber-Fiber interaction + additional fiber reinforcement
+            flM = 0._RKIND
+            flM(1:2,1:2) = fl(:,:,1)
+            rexp = EXP(stM%bff*Eff*Eff)
+            g1   = 2._RKIND*stM%aff*Eff*rexp
+            Hff  = kap*gi_0 + (1._RKIND-3._RKIND*kap)*flM
+            S    = S + g1*Hff
+
+            g1   = 1._RKIND + (2._RKIND*stM%bff*Eff*Eff)
+            g1   = 4._RKIND*stM%aff*g1*rexp
+            CC   = CC + (g1*TEN_DYADPROD(Hff, Hff, 3))
+
+    !       Sheet-Sheet interaction + additional cross-fiber stress
+            flM = 0._RKIND
+            flM(1:2,1:2) = fl(:,:,2)
+            rexp = EXP(stM%bss*Ess*Ess)
+            g1   = 2._RKIND*stM%ass*Ess*rexp
+            Hss  = kap*gi_0 + (1._RKIND-3._RKIND*kap)*flM
+            S    = S + g1*Hss
+
+            g1   = 1._RKIND + (2._RKIND*stM%bss*Ess*Ess)
+            g1   = 4._RKIND*stM%ass*g1*rexp
+            CC   = CC + (g1*TEN_DYADPROD(Hss, Hss, 3))
+         
          CASE DEFAULT
             err = "Undefined material constitutive model"
 

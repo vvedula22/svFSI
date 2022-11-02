@@ -2708,35 +2708,37 @@ c     2         "can be applied for Neumann boundaries only"
 
       CASE ("MR", "Mooney-Rivlin")
          lDmn%stM%isoType = stIso_MR
-         lPtr => lSt%get(lDmn%stM%C10, "c1")
-         lPtr => lSt%get(lDmn%stM%C01, "c2")
+         lPtr => lSt%get(lDmn%stM%C10, "c1", 1, ll=0._RKIND)
+         lPtr => lSt%get(lDmn%stM%C01, "c2", 1, ll=0._RKIND)
 
       CASE ("HGO", "HGO-decoupled", "HGO-d")
       ! Neo-Hookean ground matrix + quad penalty + anistropic fibers !
          lDmn%stM%isoType = stIso_HGO_d
          lDmn%stM%C10 = mu*0.5_RKIND
-         lPtr => lSt%get(lDmn%stM%aff, "a4")
-         lPtr => lSt%get(lDmn%stM%bff, "b4")
-         lPtr => lSt%get(lDmn%stM%ass, "a6")
-         lPtr => lSt%get(lDmn%stM%bss, "b6")
-         lPtr => lSt%get(lDmn%stM%kap, "kappa")
+         lPtr => lSt%get(lDmn%stM%aff, "a4", 1, ll=0._RKIND)
+         lPtr => lSt%get(lDmn%stM%bff, "b4", 1, ll=0._RKIND)
+         lPtr => lSt%get(lDmn%stM%ass, "a6", 1, ll=0._RKIND)
+         lPtr => lSt%get(lDmn%stM%bss, "b6", 1, ll=0._RKIND)
+         lPtr => lSt%get(lDmn%stM%kap, "kappa", 1, ll=0._RKIND, 
+     2                                              ul=0.3_RKIND)
 
       CASE ("HGO-ma", "HGO-modified")
       ! Neo-Hookean ground matrix + quad penalty + anistropic fibers !
          lDmn%stM%isoType = stIso_HGO_ma
          lDmn%stM%C10 = mu*0.5_RKIND
-         lPtr => lSt%get(lDmn%stM%aff, "a4")
-         lPtr => lSt%get(lDmn%stM%bff, "b4")
-         lPtr => lSt%get(lDmn%stM%ass, "a6")
-         lPtr => lSt%get(lDmn%stM%bss, "b6")
-         lPtr => lSt%get(lDmn%stM%kap, "kappa")
+         lPtr => lSt%get(lDmn%stM%aff, "a4", 1, ll=0._RKIND)
+         lPtr => lSt%get(lDmn%stM%bff, "b4", 1, ll=0._RKIND)
+         lPtr => lSt%get(lDmn%stM%ass, "a6", 1, ll=0._RKIND)
+         lPtr => lSt%get(lDmn%stM%bss, "b6", 1, ll=0._RKIND)
+         lPtr => lSt%get(lDmn%stM%kap, "kappa", 1, ll=0._RKIND, 
+     2                                              ul=0.3_RKIND)
 
       CASE ("Guccione", "Gucci")
          lDmn%stM%isoType = stIso_Gucci
-         lPtr => lSt%get(lDmn%stM%C10, "C")
-         lPtr => lSt%get(lDmn%stM%bff, "bf")
-         lPtr => lSt%get(lDmn%stM%bss, "bs")
-         lPtr => lSt%get(lDmn%stM%bfs, "bfs")
+         lPtr => lSt%get(lDmn%stM%C10, "C", 1, ll=0._RKIND)
+         lPtr => lSt%get(lDmn%stM%bff, "bf", 1, ll=0._RKIND)
+         lPtr => lSt%get(lDmn%stM%bss, "bs", 1, ll=0._RKIND)
+         lPtr => lSt%get(lDmn%stM%bfs, "bfs", 1, ll=0._RKIND)
          IF (nsd .NE. 3) THEN
             err = "Guccione material model is used for 3D problems "//
      2         "with 2 family of directions"
@@ -2745,37 +2747,38 @@ c     2         "can be applied for Neumann boundaries only"
       CASE ("HO", "Holzapfel", "HO-decoupled", "HO-d")
       ! Holzapefel and Ogden model for myocardium !
          lDmn%stM%isoType = stIso_HO_d
-         lPtr => lSt%get(lDmn%stM%a, "a")
-         lPtr => lSt%get(lDmn%stM%b, "b")
-         lPtr => lSt%get(lDmn%stM%aff, "a4f")
-         lPtr => lSt%get(lDmn%stM%bff, "b4f")
-         lPtr => lSt%get(lDmn%stM%ass, "a4s")
-         lPtr => lSt%get(lDmn%stM%bss, "b4s")
-         lPtr => lSt%get(lDmn%stM%afs, "afs")
-         lPtr => lSt%get(lDmn%stM%bfs, "bfs")
-         lPtr => lSt%get(lDmn%stM%khs, "k")
+         lPtr => lSt%get(lDmn%stM%a, "a", 1, ll=0._RKIND)
+         lPtr => lSt%get(lDmn%stM%b, "b", 1, ll=0._RKIND)
+         lPtr => lSt%get(lDmn%stM%aff, "a4f", 1, ll=0._RKIND)
+         lPtr => lSt%get(lDmn%stM%bff, "b4f", 1, ll=0._RKIND)
+         lPtr => lSt%get(lDmn%stM%ass, "a4s", 1, ll=0._RKIND)
+         lPtr => lSt%get(lDmn%stM%bss, "b4s", 1, ll=0._RKIND)
+         lPtr => lSt%get(lDmn%stM%afs, "afs", 1, ll=0._RKIND)
+         lPtr => lSt%get(lDmn%stM%bfs, "bfs", 1, ll=0._RKIND)
+         lPtr => lSt%get(lDmn%stM%khs, "k", 1, ll=0._RKIND)
 
       CASE ("HO-ma", "HO-modified")
       ! Holzapefel and Ogden model for myocardium !
          lDmn%stM%isoType = stIso_HO_ma
-         lPtr => lSt%get(lDmn%stM%a, "a")
-         lPtr => lSt%get(lDmn%stM%b, "b")
-         lPtr => lSt%get(lDmn%stM%aff, "a4f")
-         lPtr => lSt%get(lDmn%stM%bff, "b4f")
-         lPtr => lSt%get(lDmn%stM%ass, "a4s")
-         lPtr => lSt%get(lDmn%stM%bss, "b4s")
-         lPtr => lSt%get(lDmn%stM%afs, "afs")
-         lPtr => lSt%get(lDmn%stM%bfs, "bfs")
+         lPtr => lSt%get(lDmn%stM%a, "a", 1, ll=0._RKIND)
+         lPtr => lSt%get(lDmn%stM%b, "b", 1, ll=0._RKIND)
+         lPtr => lSt%get(lDmn%stM%aff, "a4f", 1, ll=0._RKIND)
+         lPtr => lSt%get(lDmn%stM%bff, "b4f", 1, ll=0._RKIND)
+         lPtr => lSt%get(lDmn%stM%ass, "a4s", 1, ll=0._RKIND)
+         lPtr => lSt%get(lDmn%stM%bss, "b4s", 1, ll=0._RKIND)
+         lPtr => lSt%get(lDmn%stM%afs, "afs", 1, ll=0._RKIND)
+         lPtr => lSt%get(lDmn%stM%bfs, "bfs", 1, ll=0._RKIND)
          lPtr => lSt%get(lDmn%stM%khs, "k")
 
       CASE ("Lee-Sacks", "L-Scks", "LS")
       ! Lee-Sacks model for cardiac valves !
          lDmn%stM%isoType = stIso_LS
-         lPtr => lSt%get(lDmn%stM%a, "a")
-         lPtr => lSt%get(lDmn%stM%a0, "a0")
-         lPtr => lSt%get(lDmn%stM%b1, "b1")
-         lPtr => lSt%get(lDmn%stM%b2, "b2")
-         lPtr => lSt%get(lDmn%stM%mu0, "mu0")
+         lPtr => lSt%get(lDmn%stM%a, "a", 1, ll=0._RKIND)
+         lPtr => lSt%get(lDmn%stM%a0, "a0", 1, ll=0._RKIND)
+         lPtr => lSt%get(lDmn%stM%b1, "b1", 1, ll=0._RKIND)
+         lPtr => lSt%get(lDmn%stM%b2, "b2", 1, ll=0._RKIND)
+         lPtr => lSt%get(lDmn%stM%mu0, "mu0", 1, ll=0._RKIND, 
+     2                                   ul=1._RKIND)
 
       CASE DEFAULT
          lDmn%stM%isoType = stIso_nHook
