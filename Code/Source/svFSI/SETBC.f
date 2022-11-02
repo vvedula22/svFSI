@@ -657,7 +657,6 @@
       USE COMMOD
       USE ALLFUN
       IMPLICIT NONE
-      TYPE(mshType), INTENT(IN) :: lM
       TYPE(bcType), INTENT(IN) :: lBc
       TYPE(faceType), INTENT(IN) :: lFa
 
@@ -765,27 +764,7 @@
                   Val(11,i) = -1._RKIND
                END IF
             END DO
-         ELSE
-            DO a=1, lFa%nNo
-               rowN = lFa%gN(a)
-               IF (rowN .EQ. masN) CYCLE
-               R (1:3,rowN) = 0._RKIND
-
-   !           Diagonalize the stiffness matrix (A)
-               DO i=rowPtr(rowN), rowPtr(rowN+1)-1
-                  colN = colPtr(i)
-                  IF (colN .EQ. rowN) THEN
-                     Val(1, i) = 1._RKIND
-                     Val(6, i) = 1._RKIND
-                     Val(11,i) = 1._RKIND
-                  ELSE IF (colN .EQ. masN) THEN
-                     Val(1, i) = -1._RKIND
-                     Val(6, i) = -1._RKIND
-                     Val(11,i) = -1._RKIND
-                  END IF
-               END DO
-            END DO
-         END IF
+         END DO
       END IF
 
       RETURN

@@ -60,12 +60,10 @@
             iFa = eq(iEq)%bc(iBc)%iFa
             iM  = eq(iEq)%bc(iBc)%iM
             CALL BCINI(eq(iEq)%bc(iBc), msh(iM)%fa(iFa))
-<<<<<<< HEAD
-=======
-            IF (msh(iM)%lShl .AND. (msh(iM)%eType.EQ.eType_TRI3)) THEN
-               CALL SHLBCINI(eq(iEq)%bc(iBc), msh(iM)%fa(iFa), msh(iM))
-            END IF
->>>>>>> 50de2b6476ec482b896c138fcd55736948ff7bf4
+            ! This is for defining different boundary types; not used now
+            ! IF (msh(iM)%lShl .AND. (msh(iM)%eType.EQ.eType_TRI3)) THEN
+            !    CALL SHLBCINI(eq(iEq)%bc(iBc), msh(iM)%fa(iFa), msh(iM))
+            ! END IF
          END DO
       END DO
 

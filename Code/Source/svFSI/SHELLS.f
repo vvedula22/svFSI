@@ -247,6 +247,26 @@
          Bm(3,3,a) = Nx(2,a)*aCov(3,1) + Nx(1,a)*aCov(3,2)
       END DO
 
+!     For the boundary elements, zero-out Bm for fixed/clamped BC.
+      setIt = .FALSE.
+      a = lM%eNoN + 1
+      DO WHILE (a .LE. eNoN)
+         IF (ptr(a) .EQ. 0) THEN
+            b = a - lM%eNoN
+            IF (BTEST(lM%sbc(b,e),bType_fix)) setIt(b) = .TRUE.
+         END IF
+         a = a + 1
+      END DO
+
+      DO a=1, lM%eNoN
+         IF (setIt(a)) THEN
+            DO b=1, lM%eNoN
+               IF (a .EQ. b) CYCLE
+               Bm(:,:,b) = 0._RKIND
+            END DO
+         END IF
+      END DO
+
 !---------------------------------------------------------------------
 !     Compute curvature coefficients for bending strain and its
 !     variation for CST elements
@@ -615,6 +635,8 @@
      2         nInI(2,3)*a(3,p)) + xc(2,i)
             xc(3,j) = 2._RKIND*(nInI(3,1)*a(1,p) + nInI(3,2)*a(2,p) +
      2         nInI(3,3)*a(3,p)) + xc(3,i)
+
+            IF (BTEST(lM%sbc(i,e),bType_fix)) xc(:,j) = x0(:,j)
          END DO
       END IF
 
@@ -849,18 +871,28 @@
             f = i + 1
             IF (i .EQ. 1) p = 3
             IF (i .EQ. 3) f = 1
-            ! Free boundary settings
-!           eI = aI/|aI| (current config)
-            aIi   = 1._RKIND/SQRT(NORM(a(:,i)))
-            eI(:) = a(:,i)*aIi
-!           nI = eI x n (currnt config)
-            nI(1) = eI(2)*nV(3) - eI(3)*nV(2)
-            nI(2) = eI(3)*nV(1) - eI(1)*nV(3)
-            nI(3) = eI(1)*nV(2) - eI(2)*nV(1)
-            cI    = NORM(a(:,i),a(:,p))*aIi*aIi
-            nInI  = MAT_DYADPROD(nI, nI, 3)
-            eIeI  = MAT_DYADPROD(eI, eI, 3)
-            eIaP  = MAT_DYADPROD(eI, a(:,p), 3)
+            IF (BTEST(lM%sbc(i,e),bType_fix)) THEN
+!              eI = eI0 = aI0/|aI0| (reference config)
+               aIi   = 1._RKIND/SQRT(NORM(a0(:,i)))
+               eI(:) = a0(:,i) * aIi
+!              nI = nI0 = eI0 x n0 (reference config)
+               nI(1) = eI(2)*nV0(3) - eI(3)*nV0(2)
+               nI(2) = eI(3)*nV0(1) - eI(1)*nV0(3)
+               nI(3) = eI(1)*nV0(2) - eI(2)*nV0(1)
+               nInI  = MAT_DYADPROD(nI, nI, 3)
+            ELSE
+       !           eI = aI/|aI| (current config)
+              aIi   = 1._RKIND/SQRT(NORM(a(:,i)))
+              eI(:) = a(:,i)*aIi
+       !           nI = eI x n (currnt config)
+              nI(1) = eI(2)*nV(3) - eI(3)*nV(2)
+              nI(2) = eI(3)*nV(1) - eI(1)*nV(3)
+              nI(3) = eI(1)*nV(2) - eI(2)*nV(1)
+              cI    = NORM(a(:,i),a(:,p))*aIi*aIi
+              nInI  = MAT_DYADPROD(nI, nI, 3)
+              eIeI  = MAT_DYADPROD(eI, eI, 3)
+              eIaP  = MAT_DYADPROD(eI, a(:,p), 3)
+            END IF  
 
 !           Update Bb now
 !           Free boundary conditions: assumed that the `artificial'
@@ -884,6 +916,47 @@
                   Bb(:,:,f) = Bb(:,:,f) + MATMUL(Bb(:,:,j), tmpA)
                END IF
                Bb(:,:,j) = 0._RKIND
+
+            !           Hinged boundary conditions: a special case of simple support
+!           in which no translation displacements are allowed.
+            ELSE IF (BTEST(lM%sbc(i,e),bType_hing)) THEN
+!              E_I
+               IF (.NOT.lFix(i)) THEN
+                  tmpA = -Im + 2._RKIND*eIeI
+                  Bb(:,:,i) = Bb(:,:,i) + MATMUL(Bb(:,:,j), tmpA)
+               END IF
+               lFix(p)   = .TRUE.
+               lFix(f)   = .TRUE.
+               Bb(:,:,p) = 0._RKIND
+               Bb(:,:,f) = 0._RKIND
+               Bb(:,:,j) = 0._RKIND
+
+!           Fixed boundary condition: no displacements and no rotations
+!           are allowed.
+            ELSE IF (BTEST(lM%sbc(i,e),bType_fix)) THEN
+               IF (.NOT.lFix(i)) THEN
+                  tmpA = Im - 2._RKIND*nInI
+                  Bb(:,:,i) = Bb(:,:,i) + MATMUL(Bb(:,:,j), tmpA)
+               END IF
+               lFix(p)   = .TRUE.
+               lFix(f)   = .TRUE.
+               Bb(:,:,f) = 0._RKIND
+               Bb(:,:,p) = 0._RKIND
+
+!           Symmetric BCs (need to be verified)
+            ELSE IF (BTEST(lM%sbc(i,e),bType_symm)) THEN
+               IF (.NOT.lFix(i)) THEN
+                  tmpA = Im - 2._RKIND*nInI
+                  Bb(:,:,i) = Bb(:,:,i) + MATMUL(Bb(:,:,j), tmpA)
+               END IF
+               Bb(:,:,j) = 0._RKIND
+               tmpA(:,1) = eI(:)
+               tmpA(:,2) = nV(:)
+               tmpA(:,3) = nI(:)
+               Bb(:,:,f) = MATMUL(Bb(:,:,f), tmpA)
+               Bb(:,3,f) = 0._RKIND
+               Bb(:,:,p) = MATMUL(Bb(:,:,p), tmpA)
+               Bb(:,3,p) = 0._RKIND
             END IF
          END DO
       END IF
@@ -1393,4 +1466,3 @@ c=====================================================================
       RETURN
       END SUBROUTINE SHELLBF
 !####################################################################
-
