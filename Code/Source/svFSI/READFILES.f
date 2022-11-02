@@ -1466,12 +1466,12 @@
             lEq%output(iOut)%grp  = outGrp_C
             lEq%output(iOut)%o    = 0
             lEq%output(iOut)%l    = nsymd
-            lEq%output(iOut)%name = "CG_Strain"
+            lEq%output(iOut)%name = "Cauchy_Strain"
          CASE (out_CGInv1)
             lEq%output(iOut)%grp  = outGrp_I1
             lEq%output(iOut)%o    = 0
             lEq%output(iOut)%l    = 1
-            lEq%output(iOut)%name = "CG_Strain_Trace"
+            lEq%output(iOut)%name = "Cauchy_Strain_Trace"
          CASE (out_divergence)
             lEq%output(iOut)%grp  = outGrp_divV
             lEq%output(iOut)%o    = 0
