@@ -60,6 +60,12 @@
             iFa = eq(iEq)%bc(iBc)%iFa
             iM  = eq(iEq)%bc(iBc)%iM
             CALL BCINI(eq(iEq)%bc(iBc), msh(iM)%fa(iFa))
+<<<<<<< HEAD
+=======
+            IF (msh(iM)%lShl .AND. (msh(iM)%eType.EQ.eType_TRI3)) THEN
+               CALL SHLBCINI(eq(iEq)%bc(iBc), msh(iM)%fa(iFa), msh(iM))
+            END IF
+>>>>>>> 50de2b6476ec482b896c138fcd55736948ff7bf4
          END DO
       END DO
 
@@ -694,4 +700,57 @@
 
       RETURN
       END SUBROUTINE SHLINI
+!--------------------------------------------------------------------
+!     Initializing boundary condition variables for CST shells - this
+!     BC is set on the interior node adjacent to the boundary
+      SUBROUTINE SHLBCINI(lBc, lFa, lM)
+      USE COMMOD
+      USE ALLFUN
+      IMPLICIT NONE
+      TYPE(bcType), INTENT(IN) :: lBc
+      TYPE(faceType), INTENT(IN) :: lFa
+      TYPE(mshType), INTENT(INOUT) :: lM
+
+      INTEGER(KIND=IKIND) :: a, b, e, Ac, Bc, Ec
+      LOGICAL :: bFlag
+
+      DO e=1, lFa%nEl
+         Ec = lFa%gE(e)
+         DO a=1, lM%eNoN
+            Ac = lM%IEN(a,Ec)
+
+!           Find the interior node of the mesh element that is part of
+!           the boundary. [bFlag=='T' => node is on the boundary]
+            bflag = .FALSE.
+            DO b=1, lFa%eNoN
+               Bc = lFa%IEN(b,e)
+               IF (Ac .EQ. Bc) THEN
+                  bFlag = .TRUE.
+                  EXIT
+               END IF
+            END DO
+
+!           Set the BC on the interior node [bFlag == 'F']
+            IF (.NOT.bFlag) THEN
+               IF (.NOT.BTEST(lM%sbc(a,Ec),bType_free)) THEN
+                  err = "BC detected on a non-boundary shell element."//
+     2               " Correction needed"
+               END IF
+               lM%sbc(a,Ec) = IBCLR(lM%sbc(a,Ec), bType_free)
+               IF (BTEST(lBc%bType,bType_free)) THEN
+                  lM%sbc(a,Ec) = IBSET(lM%sbc(a,Ec),bType_free)
+               ELSE IF (BTEST(lBc%bType,bType_fix)) THEN
+                  lM%sbc(a,Ec) = IBSET(lM%sbc(a,Ec),bType_fix)
+               ELSE IF (BTEST(lBc%bType,bType_hing)) THEN
+                  lM%sbc(a,Ec) = IBSET(lM%sbc(a,Ec),bType_hing)
+               ELSE IF (BTEST(lBc%bType,bType_symm)) THEN
+                  lM%sbc(a,Ec) = IBSET(lM%sbc(a,Ec),bType_symm)
+               END IF
+               EXIT
+            END IF
+         END DO
+      END DO
+
+      RETURN
+      END SUBROUTINE SHLBCINI
 !####################################################################
