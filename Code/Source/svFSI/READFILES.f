@@ -2723,7 +2723,7 @@ c     2         "can be applied for Neumann boundaries only"
          lPtr => lSt%get(lDmn%stM%ass, "a6", 1, ll=0._RKIND)
          lPtr => lSt%get(lDmn%stM%bss, "b6", 1, ll=0._RKIND)
          lPtr => lSt%get(lDmn%stM%kap, "kappa", 1, ll=0._RKIND, 
-     2                                              ul=0.3_RKIND)
+     2                                ul=1._RKIND/3._RKIND)
 
       CASE ("HGO-ma", "HGO-modified")
       ! Neo-Hookean ground matrix + quad penalty + anistropic fibers !
@@ -2734,7 +2734,7 @@ c     2         "can be applied for Neumann boundaries only"
          lPtr => lSt%get(lDmn%stM%ass, "a6", 1, ll=0._RKIND)
          lPtr => lSt%get(lDmn%stM%bss, "b6", 1, ll=0._RKIND)
          lPtr => lSt%get(lDmn%stM%kap, "kappa", 1, ll=0._RKIND, 
-     2                                              ul=0.3_RKIND)
+     2                                ul=1._RKIND/3._RKIND)
 
       CASE ("Guccione", "Gucci")
          lDmn%stM%isoType = stIso_Gucci

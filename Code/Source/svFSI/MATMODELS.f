@@ -1273,6 +1273,7 @@ c     2      (EXP(stM%khs*Ess) + EXP(-stM%khs*Ess) + 2.0_RKIND)
          IF (nfd .LT. 2) err = "Min fiber directions not defined for "//
      2      "HGO material model (2)"
          kap  = stM%kap
+         mu  = 2._RKIND * stM%C10
 
          SN = (gi_0 - Jg2i*gi_x)
          CCN= 2._RKIND*Jg2i*(TEN_DYADPROD(gi_x, gi_x, 2) +
@@ -1296,8 +1297,8 @@ c     2      (EXP(stM%khs*Ess) + EXP(-stM%khs*Ess) + 2.0_RKIND)
 
 !        Isochoric and volumetric contribution to stress and stiffness
 !        tensors
-         S  = stM%C10 * SN
-         CC = stM%C10 * CCN
+         S  = mu * SN
+         CC = mu * CCN
 
 !        Anisotropic contribution to stress and stiffness tensors
 !        Fiber-Fiber interaction + additional fiber reinforcement
@@ -1606,8 +1607,8 @@ c     2      (EXP(stM%khs*Ess) + EXP(-stM%khs*Ess) + 2.0_RKIND)
 
     !       Isochoric and volumetric contribution to stress and stiffness
     !       tensors
-            S  = stM%C10 * SN
-            CC = stM%C10 * CCN
+            S  = mu * SN
+            CC = mu * CCN
 
     !       Anisotropic contribution to stress and stiffness tensors
     !       Fiber-Fiber interaction + additional fiber reinforcement
