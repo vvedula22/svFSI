@@ -87,10 +87,11 @@
       END SUBROUTINE GLOBALEQASSEM
 !####################################################################
 !     Construct Neumann BCs
-      SUBROUTINE BASSEMNEUBC(lFa, hg, Yg)
+      SUBROUTINE BASSEMNEUBC(lBc, lFa, hg, Yg)
       USE COMMOD
       USE ALLFUN
       IMPLICIT NONE
+      TYPE(bcType), INTENT(IN) :: lBc
       TYPE(faceType), INTENT(IN) :: lFa
       REAL(KIND=RKIND), INTENT(IN) :: hg(tnNo), Yg(tDof,tnNo)
 
@@ -103,6 +104,11 @@
 
       iM   = lFa%iM
       eNoN = lFa%eNoN
+      IF (lBc%eDrn(1) + lBc%eDrn(2) + lBc%eDrn(3) .GT. 1) THEN
+         err = "Effective direction must be in either x, y, z" //
+     2             "direction, eg. (1,0,0) (0,1,0) (0,0,1)"      
+      END IF 
+      
       DO e=1, lFa%nEl
          Ec    = lFa%gE(e)
          cDmn  = DOMAIN(msh(iM), cEq, Ec)
@@ -135,6 +141,14 @@
                h = h + N(a)*hl(a)
                y = y + N(a)*yl(:,a)
             END DO
+
+            IF (lBc%eDrn(1) .EQ. 1) THEN
+               nV = (/1, 0, 0/)
+            ELSEIF (lBc%eDrn(2) .EQ. 1) THEN
+               nV = (/0, 1, 0/)
+            ELSEIF (lBc%eDrn(3) .EQ. 1) THEN
+               nV = (/0, 0, 1/)
+            END IF
 
             SELECT CASE (cPhys)
             CASE (phys_fluid)
@@ -195,10 +209,11 @@
 !     We use Nanson's formula to take change in normal direction with
 !     deformation into account. Additional calculations based on mesh
 !     need to be performed.
-      SUBROUTINE BNEUFOLWP(lFa, hg, Dg)
+      SUBROUTINE BNEUFOLWP(lBc, lFa, hg, Dg)
       USE COMMOD
       USE ALLFUN
       IMPLICIT NONE
+      TYPE(bcType), INTENT(IN) :: lBc
       TYPE(faceType), INTENT(IN) :: lFa
       REAL(KIND=RKIND), INTENT(IN) :: hg(tnNo), Dg(tDof,tnNo)
 
@@ -213,6 +228,11 @@
       iM    = lFa%iM
       eNoN  = msh(iM)%eNoN
       eNoNb = lFa%eNoN
+      IF (lBc%eDrn(1) + lBc%eDrn(2) + lBc%eDrn(3) .GT. 1) THEN
+         err = "Effective direction must be in either x, y, z" //
+     2             "direction, eg. (1,0,0) (0,1,0) (0,0,1)"      
+      END IF 
+
       DO e=1, lFa%nEl
          Ec    = lFa%gE(e)
          cDmn  = DOMAIN(msh(iM), cEq, Ec)
@@ -262,6 +282,14 @@
             Jac = SQRT(NORM(nV))
             nV  = nV / Jac
             w   = lFa%w(g)*Jac
+
+            IF (lBc%eDrn(1) .EQ. 1) THEN
+               nV = (/1, 0, 0/)
+            ELSEIF (lBc%eDrn(2) .EQ. 1) THEN
+               nV = (/0, 1, 0/)
+            ELSEIF (lBc%eDrn(3) .EQ. 1) THEN
+               nV = (/0, 0, 1/)
+            END IF
 
             IF (cPhys .EQ. phys_ustruct) THEN
                IF (nsd .EQ. 3) THEN

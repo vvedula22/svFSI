@@ -60,10 +60,10 @@
             iFa = eq(iEq)%bc(iBc)%iFa
             iM  = eq(iEq)%bc(iBc)%iM
             CALL BCINI(eq(iEq)%bc(iBc), msh(iM)%fa(iFa))
-            ! This is for defining different boundary types; not used now
-            ! IF (msh(iM)%lShl .AND. (msh(iM)%eType.EQ.eType_TRI3)) THEN
-            !    CALL SHLBCINI(eq(iEq)%bc(iBc), msh(iM)%fa(iFa), msh(iM))
-            ! END IF
+            ! This defines different boundary types; defalt - free
+            IF (msh(iM)%lShl .AND. (msh(iM)%eType.EQ.eType_TRI3)) THEN
+               CALL SHLBCINI(eq(iEq)%bc(iBc), msh(iM)%fa(iFa), msh(iM))
+            END IF
          END DO
       END DO
 
@@ -712,6 +712,7 @@
       INTEGER(KIND=IKIND) :: a, b, e, Ac, Bc, Ec
       LOGICAL :: bFlag
 
+      IF (BTEST(lBc%bType,bType_free)) RETURN
       DO e=1, lFa%nEl
          Ec = lFa%gE(e)
          DO a=1, lM%eNoN
@@ -730,19 +731,15 @@
 
 !           Set the BC on the interior node [bFlag == 'F']
             IF (.NOT.bFlag) THEN
-               IF (.NOT.BTEST(lM%sbc(a,Ec),bType_free)) THEN
-                  err = "BC detected on a non-boundary shell element."//
-     2               " Correction needed"
-               END IF
-               lM%sbc(a,Ec) = IBCLR(lM%sbc(a,Ec), bType_free)
-               IF (BTEST(lBc%bType,bType_free)) THEN
-                  lM%sbc(a,Ec) = IBSET(lM%sbc(a,Ec),bType_free)
-               ELSE IF (BTEST(lBc%bType,bType_fix)) THEN
+               IF (BTEST(lBc%bType,bType_fix)) THEN
                   lM%sbc(a,Ec) = IBSET(lM%sbc(a,Ec),bType_fix)
+                  lM%sbc(a,Ec) = IBCLR(lM%sbc(a,Ec), bType_free)
                ELSE IF (BTEST(lBc%bType,bType_hing)) THEN
                   lM%sbc(a,Ec) = IBSET(lM%sbc(a,Ec),bType_hing)
+                  lM%sbc(a,Ec) = IBCLR(lM%sbc(a,Ec), bType_free)
                ELSE IF (BTEST(lBc%bType,bType_symm)) THEN
                   lM%sbc(a,Ec) = IBSET(lM%sbc(a,Ec),bType_symm)
+                  lM%sbc(a,Ec) = IBCLR(lM%sbc(a,Ec), bType_free)
                END IF
                EXIT
             END IF

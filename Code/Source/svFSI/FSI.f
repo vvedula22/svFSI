@@ -45,7 +45,7 @@
      2   Dg(tDof,tnNo)
 
       LOGICAL :: vmsStab
-      INTEGER(KIND=IKIND) a, e, g, l, Ac, eNoN, cPhys, iFn, nFn
+      INTEGER(KIND=IKIND) a, b, e, g, l, Ac, eNoN, cPhys, iFn, nFn
       REAL(KIND=RKIND) w, Jac, ksix(nsd,nsd)
       TYPE(fsType) :: fs(2)
 
@@ -57,6 +57,7 @@
      2   Nwxx(:,:), Nqx(:,:)
 
       eNoN = lM%eNoN
+      IF (lM%eType .EQ. eType_TRI3) eNoN = 2*eNoN
       nFn  = lM%nFn
       IF (nFn .EQ. 0) nFn = 1
 
@@ -81,7 +82,8 @@
          IF ((cPhys .NE. phys_fluid)  .AND.
      2       (cPhys .NE. phys_lElas)  .AND.
      3       (cPhys .NE. phys_struct) .AND.
-     4       (cPhys .NE. phys_ustruct)) CYCLE
+     4       (cPhys .NE. phys_ustruct) .AND. 
+     5       (cPhys .NE. phys_shell) ) CYCLE
 
 !        Update shape functions for NURBS
          IF (lM%eType .EQ. eType_NRB) CALL NRBNNX(lM, e)
@@ -89,8 +91,18 @@
 !        Create local copies
          fN   = 0._RKIND
          pS0l = 0._RKIND
+         tmXl = 0._RKIND
          ya_l = 0._RKIND
          DO a=1, eNoN
+            IF (a .LE. lM%eNoN) THEN
+               Ac = lM%IEN(a,e)
+               ptr(a) = Ac
+            ELSE
+               b  = a - lM%eNoN
+               Ac = lM%eIEN(b,e)
+               ptr(a) = Ac
+               IF (Ac .EQ. 0) CYCLE
+            END IF
             Ac = lM%IEN(a,e)
             ptr(a)   = Ac
             xl(:,a)  = x(:,Ac)
@@ -98,11 +110,6 @@
             yl(:,a)  = Yg(:,Ac)
             dl(:,a)  = Dg(:,Ac)
             bfl(:,a) = Bf(:,Ac)
-            IF (ALLOCATED(lM%fN)) THEN
-               DO iFn=1, nFn
-                  fN(:,iFn) = lM%fN((iFn-1)*nsd+1:iFn*nsd,e)
-               END DO
-            END IF
             IF (ALLOCATED(pS0)) pS0l(:,a) = pS0(:,Ac)
             IF (ecCpld) THEN
                IF (ALLOCATED(lM%tmX)) THEN
@@ -115,6 +122,12 @@
                END IF
             END IF
          END DO
+
+         IF (ALLOCATED(lM%fN)) THEN
+            DO iFn=1, nFn
+               fN(:,iFn) = lM%fN((iFn-1)*nsd+1:iFn*nsd,e)
+            END DO
+         END IF
 
 !        For FSI, fluid domain should be in the current configuration
          IF (cPhys .EQ. phys_fluid) THEN
@@ -139,69 +152,85 @@
          Nqx      = 0._RKIND
          Nwxx     = 0._RKIND
 
-!        Gauss integration 1
-         DO g=1, fs(1)%nG
-            IF (g.EQ.1 .OR. .NOT.fs(2)%lShpF) THEN
-               CALL GNN(fs(2)%eNoN, nsd, fs(2)%Nx(:,:,g), xql, Nqx, Jac,
-     2            ksix)
-               IF (ISZERO(Jac)) err = "Jac < 0 @ element "//e
+         IF (lM%lShl) THEN
+            IF (lM%eType .EQ. eType_TRI3) THEN
+!              Constant strain triangles, no numerical integration
+               CALL SHELLCST(fs(1), e, eNoN, nFn, fN, al, yl, dl, xl,
+     2             bfl, ptr)
+            ELSE
+!              Gauss integration
+               DO g=1, fs(1)%nG
+                  CALL SHELL3D(fs(1), g, eNoN, nFn, fN, al, yl, dl, 
+     2               xl, bfl, lR, lK)
+               END DO
             END IF
+         ELSE
+!           Gauss integration 1
+            DO g=1, fs(1)%nG
+               IF (g.EQ.1 .OR. .NOT.fs(2)%lShpF) THEN
+                  CALL GNN(fs(2)%eNoN, nsd, fs(2)%Nx(:,:,g), xql, Nqx,
+     2                Jac, ksix)
+                  IF (ISZERO(Jac)) err = "Jac < 0 @ element "//e
+               END IF
 
-            IF (g.EQ.1 .OR. .NOT.fs(1)%lShpF) THEN
-               CALL GNN(fs(1)%eNoN, nsd, fs(1)%Nx(:,:,g), xwl, Nwx, Jac,
-     2            ksix)
-               IF (ISZERO(Jac)) err = "Jac < 0 @ element "//e
+               IF (g.EQ.1 .OR. .NOT.fs(1)%lShpF) THEN
+                  CALL GNN(fs(1)%eNoN, nsd, fs(1)%Nx(:,:,g), xwl, Nwx, 
+     2               Jac, ksix)
+                  IF (ISZERO(Jac)) err = "Jac < 0 @ element "//e
 
-               CALL GNNxx(l, fs(1)%eNoN, nsd, fs(1)%Nx(:,:,g),
-     2            fs(1)%Nxx(:,:,g), xwl, Nwx, Nwxx)
-            END IF
-            w = fs(1)%w(g) * Jac
+                  CALL GNNxx(l, fs(1)%eNoN, nsd, fs(1)%Nx(:,:,g),
+     2               fs(1)%Nxx(:,:,g), xwl, Nwx, Nwxx)
+               END IF
+               w = fs(1)%w(g) * Jac
 
-            IF (nsd .EQ. 3) THEN
-               SELECT CASE (cPhys)
-               CASE (phys_fluid)
-                  CALL FLUID3D_M(vmsStab, fs(1)%eNoN, fs(2)%eNoN, w,
-     2               ksix, fs(1)%N(:,g), fs(2)%N(:,g), Nwx, Nqx, Nwxx,
-     3               al, yl, bfl, lR, lK)
+               IF (nsd .EQ. 3) THEN
+                  SELECT CASE (cPhys)
+                  CASE (phys_fluid)
+                     CALL FLUID3D_M(vmsStab, fs(1)%eNoN, fs(2)%eNoN, w,
+     2                  ksix, fs(1)%N(:,g), fs(2)%N(:,g), Nwx, Nqx, 
+     3                  Nwxx, al, yl, bfl, lR, lK)
 
-               CASE (phys_lElas)
-                  CALL LELAS3D(fs(1)%eNoN, w, fs(1)%N(:,g), Nwx, al, dl,
-     2               bfl, pS0l, pSl, lR, lK)
+                  CASE (phys_lElas)
+                     CALL LELAS3D(fs(1)%eNoN, w, fs(1)%N(:,g), Nwx, al, 
+     2                  dl, bfl, pS0l, pSl, lR, lK)
 
-               CASE (phys_struct)
-                  CALL STRUCT3D(fs(1)%eNoN, nFn, w, fs(1)%N(:,g), Nwx,
-     2               al, yl, dl, bfl, fN, pS0l, pSl, tmXl, ya_l, lR, lK)
+                  CASE (phys_struct)
+                     CALL STRUCT3D(fs(1)%eNoN, nFn, w, fs(1)%N(:,g), 
+     2                  Nwx, al, yl, dl, bfl, fN, pS0l, pSl, tmXl, ya_l,
+     3                  lR, lK)
 
-               CASE (phys_ustruct)
-                  CALL USTRUCT3D_M(vmsStab, fs(1)%eNoN, fs(2)%eNoN, nFn,
-     2               w, Jac, fs(1)%N(:,g), fs(2)%N(:,g), Nwx, al, yl,
-     3               dl, bfl, fN, tmXl, ya_l, lR, lK, lKd)
+                  CASE (phys_ustruct)
+                     CALL USTRUCT3D_M(vmsStab, fs(1)%eNoN, fs(2)%eNoN, 
+     2                  nFn, w, Jac, fs(1)%N(:,g), fs(2)%N(:,g), Nwx,  
+     3                  al, yl, dl, bfl, fN, tmXl, ya_l, lR, lK, lKd)
 
-               END SELECT
+                  END SELECT
 
-            ELSE IF (nsd .EQ. 2) THEN
-               SELECT CASE (cPhys)
-               CASE (phys_fluid)
-                  CALL FLUID2D_M(vmsStab, fs(1)%eNoN, fs(2)%eNoN, w,
-     2               ksix, fs(1)%N(:,g), fs(2)%N(:,g), Nwx, Nqx, Nwxx,
-     3               al, yl, bfl, lR, lK)
+               ELSE IF (nsd .EQ. 2) THEN
+                  SELECT CASE (cPhys)
+                  CASE (phys_fluid)
+                     CALL FLUID2D_M(vmsStab, fs(1)%eNoN, fs(2)%eNoN, w,
+     2                  ksix, fs(1)%N(:,g), fs(2)%N(:,g), Nwx, Nqx, 
+     3                  Nwxx, al, yl, bfl, lR, lK)
 
-               CASE (phys_lElas)
-                  CALL LELAS2D(fs(1)%eNoN, w, fs(1)%N(:,g), Nwx, al, dl,
-     2               bfl, pS0l, pSl, lR, lK)
+                  CASE (phys_lElas)
+                     CALL LELAS2D(fs(1)%eNoN, w, fs(1)%N(:,g), Nwx, al, 
+     2                  dl, bfl, pS0l, pSl, lR, lK)
 
-               CASE (phys_struct)
-                  CALL STRUCT2D(fs(1)%eNoN, nFn, w, fs(1)%N(:,g), Nwx,
-     2               al, yl, dl, bfl, fN, pS0l, pSl, tmXl, ya_l, lR, lK)
+                  CASE (phys_struct)
+                     CALL STRUCT2D(fs(1)%eNoN, nFn, w, fs(1)%N(:,g), 
+     2                  Nwx, al, yl, dl, bfl, fN, pS0l, pSl, tmXl, ya_l,  
+     3                  lR, lK)
 
-               CASE (phys_ustruct)
-                  CALL USTRUCT2D_M(vmsStab, fs(1)%eNoN, fs(2)%eNoN, nFn,
-     2               w, Jac, fs(1)%N(:,g), fs(2)%N(:,g), Nwx, al, yl,
-     3               dl, bfl, fN, tmXl, ya_l, lR, lK, lKd)
+                  CASE (phys_ustruct)
+                     CALL USTRUCT2D_M(vmsStab, fs(1)%eNoN, fs(2)%eNoN, 
+     2                  nFn, w, Jac, fs(1)%N(:,g), fs(2)%N(:,g), Nwx,  
+     3                  al, yl, dl, bfl, fN, tmXl, ya_l, lR, lK, lKd)
 
-               END SELECT
-            END IF
-         END DO ! g: loop
+                  END SELECT
+               END IF
+            END DO ! g: loop
+         END IF
 
 !        Set function spaces for velocity and pressure.
          CALL GETTHOODFS(fs, lM, vmsStab, 2)
@@ -256,12 +285,14 @@
          IF (eq(cEq)%assmTLS) THEN
             IF (cPhys .EQ. phys_ustruct) err = "Cannot assemble "//
      2         "USTRUCT using Trilinos"
-            CALL TRILINOS_DOASSEM(eNoN, ptr, lK, lR)
+            IF (.NOT.(lM%lShl .AND. lM%eType.EQ.eType_TRI3)) THEN
+               CALL TRILINOS_DOASSEM(eNoN, ptr, lK, lR)
+            END IF
          ELSE
 #endif
             IF (cPhys .EQ. phys_ustruct) THEN
                CALL USTRUCT_DOASSEM(eNoN, ptr, lKd, lK, lR)
-            ELSE
+            ELSEIF (.NOT.(lM%lShl .AND. lM%eType.EQ.eType_TRI3)) THEN
                CALL DOASSEM(eNoN, ptr, lK, lR)
             END IF
 #ifdef WITH_TRILINOS

@@ -371,7 +371,7 @@
       INTEGER(KIND=IKIND), PARAMETER :: maxOutput = 24
 
       LOGICAL THflag
-      INTEGER(KIND=IKIND) fid, iBc, iBf, iM, iFa, phys(4),
+      INTEGER(KIND=IKIND) fid, iBc, iBf, iM, iFa, phys(5),
      2   propL(maxNProp,10), outPuts(maxOutput), nDOP(4)
       CHARACTER(LEN=stdL) ctmp
       TYPE(listType), POINTER :: lPtr, lPBC, lPBF
@@ -764,6 +764,7 @@
          phys(2) = phys_struct
          phys(3) = phys_ustruct
          phys(4) = phys_lElas
+         phys(5) = phys_shell
 
 !        fluid properties
          propL(1,1) = fluid_density
@@ -1038,9 +1039,11 @@
                IF (.NOT.sstEq) sstEq = .TRUE.
             CASE("lElas")
                lEq%dmn(iDmn)%phys = phys_lElas
+            CASE("Shell")
+               lEq%dmn(iDmn)%phys = phys_shell
             CASE DEFAULT
                err = TRIM(lPD%ping("Equation",lPtr))//
-     2            "Equation must be fluid/struct/ustruct/lElas"
+     2            "Equation must be fluid/struct/ustruct/lElas/Shell"
             END SELECT
          ELSE
             lEq%dmn(iDmn)%phys = lEq%phys

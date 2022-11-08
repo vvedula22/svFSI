@@ -304,9 +304,9 @@
 
 !     Add Neumann BCs contribution to the LHS/RHS
       IF (lBc%flwP) THEN
-         CALL BNEUFOLWP(lFa, hg, Dg)
+         CALL BNEUFOLWP(lBc, lFa, hg, Dg)
       ELSE
-         CALL BASSEMNEUBC(lFa, hg, Yg)
+         CALL BASSEMNEUBC(lBc, lFa, hg, Yg)
       END IF
 
 !     Now treat Robin BC (stiffness and damping) here
