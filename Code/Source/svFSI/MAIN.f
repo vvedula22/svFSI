@@ -203,7 +203,17 @@
             dbg = "Solving equation <"//eq(cEq)%sym//">"
             CALL LSSOLVE(eq(cEq), incL, res)
 
-!        Solution is obtained, now updating (Corrector)
+!        AB 3/2/23: Want line search loop here. Modifies R <- alpha*R, where R
+!        is the Newton increment
+            CALL LINESEARCH
+         
+!        Or this 
+            IF (linesearch) THEN
+               CALL LINESEARCH
+               CALL PICC()
+               CONTINUE
+
+!        Solution is obtained (in R), now updating (Corrector)
 !        Note the corrector step inside the NR loop, which is
 !        slightly different from https://www.scorec.rpi.edu/~kjansen/genalf.pdf
             CALL PICC

@@ -295,7 +295,9 @@
 
       ls%callD  = FSILS_CPUT()
       ls%suc    = .FALSE.
+!     Compute norm of residual
       eps       = FSILS_NORMV(dof, mynNo, lhs%commu, R)
+!     ls = ls%RI 
       ls%iNorm  = eps
       ls%fNorm  = eps
       eps       = MAX(ls%absTol,ls%relTol*eps)

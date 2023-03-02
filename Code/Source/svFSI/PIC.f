@@ -161,7 +161,7 @@
       END SUBROUTINE PICI
 !====================================================================
 !     This is the corrector. Decision for next eqn is also made here
-      SUBROUTINE PICC
+      SUBROUTINE PICC(Ag, Yg, Dg)
       USE COMMOD
       USE ALLFUN
       IMPLICIT NONE
@@ -177,6 +177,7 @@
       coef(3) = 1._RKIND / eq(cEq)%am
       coef(4) = eq(cEq)%af*coef(1)*coef(3)
 
+!     Update DOF with Newton increment
       IF (sstEq) THEN
 !        ustruct, FSI (ustruct)
          IF (eq(cEq)%phys .EQ. phys_ustruct .OR.
@@ -255,20 +256,24 @@
 !     IB treatment
       IF (ibFlag) CALL IB_PICC()
 
+      IF (linesearch) THEN 
+         RETURN
+      END
 !     Check for convergence or max iterations of Newton-Raphson iteration
       IF (ISZERO(eq(cEq)%FSILS%RI%iNorm)) eq(cEq)%FSILS%RI%iNorm = eps
       IF (ISZERO(eq(cEq)%iNorm)) eq(cEq)%iNorm = eq(cEq)%FSILS%RI%iNorm
       IF (eq(cEq)%itr .EQ. 1) THEN
          eq(cEq)%pNorm = eq(cEq)%FSILS%RI%iNorm/eq(cEq)%iNorm
       END IF
+!     FSILS%RI%iNorm is norm of residual at iteration k. See GMRES.f line 299
       r1 = eq(cEq)%FSILS%RI%iNorm/eq(cEq)%iNorm
-
       l1 = eq(cEq)%itr .GE. eq(cEq)%maxItr
       l2 = r1 .LE. eq(cEq)%tol
       l3 = r1 .LE. eq(cEq)%tol*eq(cEq)%pNorm
       l4 = eq(cEq)%itr .GE. eq(cEq)%minItr
       IF (l1 .OR. ((l2.OR.l3).AND.l4)) eq(cEq)%ok = .TRUE.
       IF (ALL(eq%ok)) RETURN
+
 
       IF (eq(cEq)%coupled) THEN
          cEq = cEq + 1
