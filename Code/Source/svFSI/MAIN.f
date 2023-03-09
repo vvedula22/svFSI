@@ -116,6 +116,9 @@
 
 !     Inner loop for iteration
          DO
+
+!           BEGIN CALCKR. Remove eq(cEq)%itr = eq(cEq)%itr + 1 from PICI
+
             iEqOld = cEq
 !           If cplBC is being used, compute cplBC quantities (pressure, flowrate, resistance)
 !           by communicating with cplBC/genBC
@@ -200,9 +203,11 @@
                END IF
             END DO
 
+!           END CALCKR
             dbg = "Solving equation <"//eq(cEq)%sym//">"
             CALL LSSOLVE(eq(cEq), incL, res)
 
+<<<<<<< Updated upstream
 !        AB 3/2/23: Want line search loop here. Modifies R <- alpha*R, where R
 !        is the Newton increment
             CALL LINESEARCH
@@ -214,8 +219,15 @@
                CONTINUE
 
 !        Solution is obtained (in R), now updating (Corrector)
+=======
+!           ADD LINE SEARCH LOOP HERE
+
+!        Solution is obtained, now updating (Corrector)
+>>>>>>> Stashed changes
 !        Note the corrector step inside the NR loop, which is
 !        slightly different from https://www.scorec.rpi.edu/~kjansen/genalf.pdf
+!        
+!           REMOVE convergence checks and equation increment from PICC
             CALL PICC
 
 !        Checking for exceptions
