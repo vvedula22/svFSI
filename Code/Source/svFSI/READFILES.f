@@ -260,8 +260,8 @@
          IF (iCntct) THEN
             IF (eq(iEq)%phys .NE. phys_shell) err =
      2         "Contact model is applicable for shell problems only"
-            IF (nMsh .EQ. 1) err =
-     2         "More than one mesh is needed to apply contact model"
+   !          IF (nMsh .EQ. 1) err =
+   !   2         "More than one mesh is needed to apply contact model"
          END IF
          lPtr => list%get(ctmp,"Add equation",1)
          IF (eq(iEq)%phys .EQ. phys_heatF) THEN

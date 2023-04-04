@@ -221,7 +221,7 @@
      3   Siso(3,3), Dm(6,6), tauM, tauC, rC, rCl, Pdev(3,3), DBm(6,3),
      4   Bm(6,3,eNoNw), NxFi(3,eNoNw), VxFi(3,3), VxNx(3,eNoNw), BtDB,
      5   NxSNx, NxNx, Ku, tmXg, T1, T2, T3, T4, r13, r23, ddev(3,3),
-     6   Pvis(3,3), PvNx(3,eNoNw)
+     6   Pvis(3,3), PvNx(3,eNoNw), vx_c(3,3), NAxNB 
 
 !     Define parameters
       mu      = eq(cEq)%dmn(cDmn)%prop(solid_viscosity)
@@ -312,7 +312,8 @@
       Pdev = MATMUL(F, Siso)
 
 !     Viscous contribution
-      ddev = 2._RKIND*mu*Jac*MAT_DEV(MAT_SYMM(vx,3), 3)
+      vx_c = MATMUL(vx, Fi) 
+      ddev = 2._RKIND*mu*Jac*MAT_DEV(MAT_SYMM(vx_c,3), 3)
       Pvis = MATMUL(ddev, TRANSPOSE(Fi))
 
 !     Total 1st Piola-Kirchhoff stress
@@ -419,6 +420,8 @@
 
             NxNx = NxFi(1,a)*NxFi(1,b) + NxFi(2,a)*NxFi(2,b)
      2           + NxFi(3,a)*NxFi(3,b)
+            NAxNB = NxFi(1,a)*NxFi(1,b) + NxFi(2,a)*NxFi(2,b) + 
+     2              NxFi(3,a)*NxFi(3,b)   
 
 !           dM1_dV1 + af/am *dM_1/dU_1
             BtDB = Bm(1,1,a)*DBm(1,1) + Bm(2,1,a)*DBm(2,1) +
@@ -426,7 +429,8 @@
      3             Bm(5,1,a)*DBm(5,1) + Bm(6,1,a)*DBm(6,1)
             T1   = Jac*rho*vd(1)*Nw(a)*NxFi(1,b)
             T2   = -tauC*Jac*NxFi(1,a)*VxNx(1,b)
-            T3   = PvNx(1,a)*NxFi(1,b) - NxFi(1,a)*PvNx(1,b)
+            T3   = PvNx(1,a)*NxFi(1,b) - NxFi(1,a)*PvNx(1,b) 
+     2           - ddev(1,1)*NAxNB
             Ku   = w*af*(T1 + T2 + T3 + BtDB + NxSNx)
             lKd(1,a,b) = lKd(1,a,b) + Ku
 
@@ -442,7 +446,8 @@
             T1   = Jac*rho*vd(1)*Nw(a)*NxFi(2,b)
             T2   = -tauC*Jac*NxFi(1,a)*VxNx(2,b)
             T3   = Jac*rCl*(NxFi(1,a)*NxFi(2,b) - NxFi(2,a)*NxFi(1,b))
-            T4   = PvNx(1,a)*NxFi(2,b) - NxFi(2,a)*PvNx(1,b)
+            T4   = PvNx(1,a)*NxFi(2,b) - NxFi(2,a)*PvNx(1,b) 
+     2           - ddev(1,2)*NAxNB
             Ku   = w*af*(T1 + T2 + T3 + T4 + BtDB)
             lKd(2,a,b) = lKd(2,a,b) + Ku
 
@@ -458,7 +463,8 @@
             T1   = Jac*rho*vd(1)*Nw(a)*NxFi(3,b)
             T2   = -tauC*Jac*NxFi(1,a)*VxNx(3,b)
             T3   = Jac*rCl*(NxFi(1,a)*NxFi(3,b) - NxFi(3,a)*NxFi(1,b))
-            T4   = PvNx(1,a)*NxFi(3,b) - NxFi(3,a)*PvNx(1,b)
+            T4   = PvNx(1,a)*NxFi(3,b) - NxFi(3,a)*PvNx(1,b) 
+     2           - ddev(1,3)*NAxNB
             Ku   = w*af*(T1 + T2 + T3 + T4 + BtDB)
             lKd(3,a,b) = lKd(3,a,b) + Ku
 
@@ -475,6 +481,7 @@
             T2   = -tauC*Jac*NxFi(2,a)*VxNx(1,b)
             T3   = Jac*rCl*(NxFi(2,a)*NxFi(1,b) - NxFi(1,a)*NxFi(2,b))
             T4   = PvNx(2,a)*NxFi(1,b) - NxFi(1,a)*PvNx(2,b)
+     2           - ddev(2,1)*NAxNB
             Ku   = w*af*(T1 + T2 + T3 + T4 + BtDB)
             lKd(4,a,b) = lKd(4,a,b) + Ku
 
@@ -490,6 +497,7 @@
             T1   = Jac*rho*vd(2)*Nw(a)*NxFi(2,b)
             T2   = -tauC*Jac*NxFi(2,a)*VxNx(2,b)
             T3   = PvNx(2,a)*NxFi(2,b) - NxFi(2,a)*PvNx(2,b)
+     2           - ddev(2,2)*NAxNB
             Ku   = w*af*(T1 + T2 + T3 + BtDB + NxSNx)
             lKd(5,a,b) = lKd(5,a,b) + Ku
 
@@ -506,6 +514,7 @@
             T2   = -tauC*Jac*NxFi(2,a)*VxNx(3,b)
             T3   = Jac*rCl*(NxFi(2,a)*NxFi(3,b) - NxFi(3,a)*NxFi(2,b))
             T4   = PvNx(2,a)*NxFi(3,b) - NxFi(3,a)*PvNx(2,b)
+     2           - ddev(2,3)*NAxNB
             Ku   = w*af*(T1 + T2 + T3 + T4 + BtDB)
             lKd(6,a,b) = lKd(6,a,b) + Ku
 
@@ -522,6 +531,7 @@
             T2   = -tauC*Jac*NxFi(3,a)*VxNx(1,b)
             T3   = Jac*rCl*(NxFi(3,a)*NxFi(1,b) - NxFi(1,a)*NxFi(3,b))
             T4   = PvNx(3,a)*NxFi(1,b) - NxFi(1,a)*PvNx(3,b)
+     2           - ddev(3,1)*NAxNB
             Ku   = w*af*(T1 + T2 + T3 + T4 + BtDB)
             lKd(7,a,b) = lKd(7,a,b) + Ku
 
@@ -538,6 +548,7 @@
             T2   = -tauC*Jac*NxFi(3,a)*VxNx(2,b)
             T3   = Jac*rCl*(NxFi(3,a)*NxFi(2,b) - NxFi(2,a)*NxFi(3,b))
             T4   = PvNx(3,a)*NxFi(2,b) - NxFi(2,a)*PvNx(3,b)
+     2           - ddev(3,2)*NAxNB
             Ku   = w*af*(T1 + T2 + T3 + T4 + BtDB)
             lKd(8,a,b) = lKd(8,a,b) + Ku
 
@@ -553,6 +564,7 @@
             T1   = Jac*rho*vd(3)*Nw(a)*NxFi(3,b)
             T2   = -tauC*Jac*NxFi(3,a)*VxNx(3,b)
             T3   = PvNx(3,a)*NxFi(3,b) - NxFi(3,a)*PvNx(3,b)
+     2           - ddev(3,3)*NAxNB
             Ku   = w*af*(T1 + T2 + T3 + BtDB + NxSNx)
             lKd(9,a,b) = lKd(9,a,b) + Ku
 

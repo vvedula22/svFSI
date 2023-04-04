@@ -179,7 +179,7 @@
      2   fb(3), ud(3), NxSNx, NxNx, BmDBm, vx(3,3), F(3,3), Fi(3,3),
      3   ddev(3,3), Svis(3,3), S(3,3), P(3,3), S0(3,3), Dm(6,6),
      4   DBm(6,3), Bm(6,3,eNoN), NxFi(3,eNoN), PvNx(3,eNoN), r13, r23,
-     5   T1, T2
+     5   T1, T2, vx_c(3,3), NAxNB
 
 !     Define parameters
       rho     = eq(cEq)%dmn(cDmn)%prop(solid_density)
@@ -248,7 +248,8 @@
       Fi  = MAT_INV(F, 3)
 
 !     Viscous contribution
-      ddev = 2._RKIND*mu*Jac*MAT_DEV(MAT_SYMM(vx,3), 3)
+      vx_c = MATMUL(vx, Fi) 
+      ddev = 2._RKIND*mu*Jac*MAT_DEV(MAT_SYMM(vx_c,3), 3)
       Svis = MATMUL(ddev, TRANSPOSE(Fi))
       Svis = MATMUL(Fi, Svis)
 
@@ -343,74 +344,79 @@
 
             NxNx = NxFi(1,a)*NxFi(1,b) + NxFi(2,a)*NxFi(2,b)
      2           + NxFi(3,a)*NxFi(3,b)
+            NAxNB = NxFi(1,a)*NxFi(1,b) + NxFi(2,a)*NxFi(2,b) + 
+     2              NxFi(3,a)*NxFi(3,b)  
 
             BmDBm = Bm(1,1,a)*DBm(1,1) + Bm(2,1,a)*DBm(2,1) +
      2              Bm(3,1,a)*DBm(3,1) + Bm(4,1,a)*DBm(4,1) +
      3              Bm(5,1,a)*DBm(5,1) + Bm(6,1,a)*DBm(6,1)
-            T2 = afu*(BmDBm + PvNx(1,a)*NxFi(1,b) - NxFi(1,a)*PvNx(1,b))
-     2         + afv*mu*Jac*(r13*NxFi(1,a)*NxFi(1,b) + NxNx)
+            T2 = afu*(BmDBm + PvNx(1,a)*NxFi(1,b) - NxFi(1,a)*PvNx(1,b) 
+     2         - ddev(1,1)*NAxNB) + afv*mu*Jac*(r13*NxFi(1,a)*NxFi(1,b)
+     3         + NxNx)
             lK(1,a,b) = lK(1,a,b) + w*(T1 + T2)
 
             BmDBm = Bm(1,1,a)*DBm(1,2) + Bm(2,1,a)*DBm(2,2) +
      2              Bm(3,1,a)*DBm(3,2) + Bm(4,1,a)*DBm(4,2) +
      3              Bm(5,1,a)*DBm(5,2) + Bm(6,1,a)*DBm(6,2)
-            T2 = afu*(BmDBm + PvNx(1,a)*NxFi(2,b) - NxFi(2,a)*PvNx(1,b))
-     2         + afv*mu*Jac*(NxFi(2,a)*NxFi(1,b)
+            T2 = afu*(BmDBm + PvNx(1,a)*NxFi(2,b) - NxFi(2,a)*PvNx(1,b) 
+     2         - ddev(1,2)*NAxNB) + afv*mu*Jac*(NxFi(2,a)*NxFi(1,b)
      3         - r23*NxFi(1,a)*NxFi(2,b))
             lK(2,a,b) = lK(2,a,b) + w*T2
 
             BmDBm = Bm(1,1,a)*DBm(1,3) + Bm(2,1,a)*DBm(2,3) +
      2              Bm(3,1,a)*DBm(3,3) + Bm(4,1,a)*DBm(4,3) +
      3              Bm(5,1,a)*DBm(5,3) + Bm(6,1,a)*DBm(6,3)
-            T2 = afu*(BmDBm + PvNx(1,a)*NxFi(3,b) - NxFi(3,a)*PvNx(1,b))
-     2         + afv*mu*Jac*(NxFi(3,a)*NxFi(1,b)
+            T2 = afu*(BmDBm + PvNx(1,a)*NxFi(3,b) - NxFi(3,a)*PvNx(1,b) 
+     2         - ddev(1,3)*NAxNB) + afv*mu*Jac*(NxFi(3,a)*NxFi(1,b)
      3         - r23*NxFi(1,a)*NxFi(3,b))
             lK(3,a,b) = lK(3,a,b) + w*T2
 
             BmDBm = Bm(1,2,a)*DBm(1,1) + Bm(2,2,a)*DBm(2,1) +
      2              Bm(3,2,a)*DBm(3,1) + Bm(4,2,a)*DBm(4,1) +
      3              Bm(5,2,a)*DBm(5,1) + Bm(6,2,a)*DBm(6,1)
-            T2 = afu*(BmDBm + PvNx(2,a)*NxFi(1,b) - NxFi(1,a)*PvNx(2,b))
-     2         + afv*mu*Jac*(NxFi(1,a)*NxFi(2,b)
+            T2 = afu*(BmDBm + PvNx(2,a)*NxFi(1,b) - NxFi(1,a)*PvNx(2,b) 
+     2         - ddev(2,1)*NAxNB) + afv*mu*Jac*(NxFi(1,a)*NxFi(2,b)
      3         - r23*NxFi(2,a)*NxFi(1,b))
             lK(dof+1,a,b) = lK(dof+1,a,b) + w*T2
 
             BmDBm = Bm(1,2,a)*DBm(1,2) + Bm(2,2,a)*DBm(2,2) +
      2              Bm(3,2,a)*DBm(3,2) + Bm(4,2,a)*DBm(4,2) +
      3              Bm(5,2,a)*DBm(5,2) + Bm(6,2,a)*DBm(6,2)
-            T2 = afu*(BmDBm + PvNx(2,a)*NxFi(2,b) - NxFi(2,a)*PvNx(2,b))
-     2         + afv*mu*Jac*(r13*NxFi(2,a)*NxFi(2,b) + NxNx)
+            T2 = afu*(BmDBm + PvNx(2,a)*NxFi(2,b) - NxFi(2,a)*PvNx(2,b) 
+     2         - ddev(2,2)*NAxNB) + afv*mu*Jac*(r13*NxFi(2,a)*NxFi(2,b)
+     3         + NxNx)
             lK(dof+2,a,b) = lK(dof+2,a,b) + w*(T1 + T2)
 
             BmDBm = Bm(1,2,a)*DBm(1,3) + Bm(2,2,a)*DBm(2,3) +
      2              Bm(3,2,a)*DBm(3,3) + Bm(4,2,a)*DBm(4,3) +
      3              Bm(5,2,a)*DBm(5,3) + Bm(6,2,a)*DBm(6,3)
-            T2 = afu*(BmDBm + PvNx(2,a)*NxFi(3,b) - NxFi(3,a)*PvNx(2,b))
-     2         + afv*mu*Jac*(NxFi(3,a)*NxFi(2,b)
+            T2 = afu*(BmDBm + PvNx(2,a)*NxFi(3,b) - NxFi(3,a)*PvNx(2,b) 
+     2         - ddev(2,3)*NAxNB) + afv*mu*Jac*(NxFi(3,a)*NxFi(2,b)
      3         - r23*NxFi(2,a)*NxFi(3,b))
             lK(dof+3,a,b) = lK(dof+3,a,b) + w*T2
 
             BmDBm = Bm(1,3,a)*DBm(1,1) + Bm(2,3,a)*DBm(2,1) +
      2              Bm(3,3,a)*DBm(3,1) + Bm(4,3,a)*DBm(4,1) +
      3              Bm(5,3,a)*DBm(5,1) + Bm(6,3,a)*DBm(6,1)
-            T2 = afu*(BmDBm + PvNx(3,a)*NxFi(1,b) - NxFi(1,a)*PvNx(3,b))
-     2         + afv*mu*Jac*(NxFi(1,a)*NxFi(3,b)
+            T2 = afu*(BmDBm + PvNx(3,a)*NxFi(1,b) - NxFi(1,a)*PvNx(3,b) 
+     2         - ddev(3,1)*NAxNB) + afv*mu*Jac*(NxFi(1,a)*NxFi(3,b)
      3         - r23*NxFi(3,a)*NxFi(1,b))
             lK(2*dof+1,a,b) = lK(2*dof+1,a,b) + w*T2
 
             BmDBm = Bm(1,3,a)*DBm(1,2) + Bm(2,3,a)*DBm(2,2) +
      2              Bm(3,3,a)*DBm(3,2) + Bm(4,3,a)*DBm(4,2) +
      3              Bm(5,3,a)*DBm(5,2) + Bm(6,3,a)*DBm(6,2)
-            T2 = afu*(BmDBm + PvNx(3,a)*NxFi(2,b) - NxFi(2,a)*PvNx(3,b))
-     2         + afv*mu*Jac*(NxFi(2,a)*NxFi(3,b)
+            T2 = afu*(BmDBm + PvNx(3,a)*NxFi(2,b) - NxFi(2,a)*PvNx(3,b) 
+     2         - ddev(3,2)*NAxNB) + afv*mu*Jac*(NxFi(2,a)*NxFi(3,b)
      3         - r23*NxFi(3,a)*NxFi(2,b))
             lK(2*dof+2,a,b) = lK(2*dof+2,a,b) + w*T2
 
             BmDBm = Bm(1,3,a)*DBm(1,3) + Bm(2,3,a)*DBm(2,3) +
      2              Bm(3,3,a)*DBm(3,3) + Bm(4,3,a)*DBm(4,3) +
      3              Bm(5,3,a)*DBm(5,3) + Bm(6,3,a)*DBm(6,3)
-            T2 = afu*(BmDBm + PvNx(3,a)*NxFi(3,b) - NxFi(3,a)*PvNx(3,b))
-     2         + afv*mu*Jac*(r13*NxFi(3,a)*NxFi(3,b) + NxNx)
+            T2 = afu*(BmDBm + PvNx(3,a)*NxFi(3,b) - NxFi(3,a)*PvNx(3,b) 
+     2         - ddev(3,3)*NAxNB) + afv*mu*Jac*(r13*NxFi(3,a)*NxFi(3,b)
+     3         + NxNx)
             lK(2*dof+3,a,b) = lK(2*dof+3,a,b) + w*(T1 + T2)
          END DO
       END DO

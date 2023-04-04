@@ -47,6 +47,8 @@
          CALL CONSTRUCT_CONTACTPNLTY(Dg)
       CASE (cntctM_potential)
          CALL CONSTRUCT_CONTACTPTNL(Dg)
+      CASE (cntctM_slide)
+         CALL CONSTRUCT_CONTACTSLID(Dg)
       CASE DEFAULT
          err = "Undefined contact model"
       END SELECT
@@ -150,15 +152,18 @@
 
 !           Load the box with neighboring nodes lying within it
             DO jM=1, nMsh
-               IF (iM.EQ.jM .OR. .NOT.msh(jM)%lShl) CYCLE
-               DO b=1, msh(jM)%nNo
+               IF (.NOT.msh(jM)%lShl) CYCLE
+               IF ((.NOT.cntctM%lSSC) .AND. iM.EQ.jM ) CYCLE
+               DO b=1, msh(jM)%nNo 
+                  IF (iM .EQ. jM .AND. a .EQ. b) CYCLE 
                   Bc = msh(jM)%gN(b)
                   x2(1) = x(1,Bc) + Dg(i,Bc)
                   x2(2) = x(2,Bc) + Dg(j,Bc)
                   x2(3) = x(3,Bc) + Dg(k,Bc)
                   IF (x2(1).GE.xmin(1) .AND. x2(1).LE.xmax(1) .AND.
      2                x2(2).GE.xmin(2) .AND. x2(2).LE.xmax(2) .AND.
-     3                x2(3).GE.xmin(3) .AND. x2(3).LE.xmax(3)) THEN
+     3                x2(3).GE.xmin(3) .AND. x2(3).LE.xmax(3) .AND.
+     4                NORM(sF(:, Ac), sF(:, Bc)) .LE. 0._RKIND) THEN 
                      DO l=1, maxNnb
                         IF (bBox(l,Ac) .EQ. 0) THEN
                            bBox(l,Ac) = Bc
@@ -240,6 +245,8 @@
       END DO
       DEALLOCATE(sA, sF, bBox)
 
+      ! PRINT *, lR(:, 488)
+
 !     Return if no penalty forces are to be added
       IF (SUM(incNd) .EQ. 0) RETURN
 
@@ -265,7 +272,7 @@
 
       INTEGER(KIND=IKIND) :: i, j, k, l, m, iM, jM, e, a, b, Ac, Bc,
      2   eNoN, insd, maxNnb, eNoN1, eNoN2, e1, e2, gnEl, giEl, gjEl,
-     3   g1, g2
+     3   g1, g2, fid, gnNo
       REAL(KIND=RKIND) :: Jac, nV1(nsd), xmin(nsd), Jac0, nV0(nsd),
      2   xmax(nsd), xa(nsd), xb(nsd), xab(nsd)
 
@@ -273,7 +280,7 @@
      2    ptr2(:), sI(:,:)
       REAL(KIND=RKIND), ALLOCATABLE :: sJ0(:),sF(:,:), Nx(:,:),
      2   gCov(:,:), gCnv(:,:), xc(:,:), x1(:,:), x2(:,:), x0(:,:), 
-     3   lR(:,:), lR2(:,:), lK1(:,:,:), lK2(:,:,:)
+     3   lR(:,:), lR2(:,:), lK1(:,:,:), lK2(:,:,:), N1(:), N2(:)
 
       IF (eq(cEq)%phys .NE. phys_shell) RETURN
 
@@ -389,6 +396,7 @@
                   IF (xb(1).GE.xmin(1) .AND. xb(1).LE.xmax(1) .AND.
      2                xb(2).GE.xmin(2) .AND. xb(2).LE.xmax(2) .AND.
      3                xb(3).GE.xmin(3) .AND. xb(3).LE.xmax(3)) THEN
+                  ! IF (SQRT(NORM(xab)) .LE. cntctM%Rout) THEN 
                      DO l=1, maxNnb
                         IF (bBox(l,giEl) .EQ. 0) THEN
                            bBox(l,giEl) = gjEl
@@ -421,7 +429,7 @@
          iM = sI(1,giEl)
          eNoN1 = msh(iM)%eNoN
          ALLOCATE(x1(nsd,eNoN1), ptr1(eNoN1), lR(dof,eNoN1),
-     2           lK1(dof*dof, eNoN1, eNoN1)) 
+     2           lK1(dof*dof, eNoN1, eNoN1), N1(eNoN1)) 
          lR = 0._RKIND
          lK1= 0._RKIND 
          e1 = sI(2,giEl)
@@ -443,7 +451,7 @@
             jM = sI(1,gjEl)
             eNoN2 = msh(jM)%eNoN
             ALLOCATE(x2(nsd,eNoN2),ptr2(eNoN2),lR2(dof,eNoN2),
-     2          lK2(dof*dof, eNoN1, eNoN2)) 
+     2          lK2(dof*dof, eNoN1, eNoN2), N2(eNoN2)) 
             lR2  = 0._RKIND     
             lK2  = 0._RKIND
             e2 = sI(2,gjEl)
@@ -458,11 +466,28 @@
                xb(:) = xb(:) + x2(:,b)
             END DO
             xb = xb / REAL(eNoN2, KIND=RKIND)
-            DO g1=1, msh(jM)%nG
+            DO g1=1, msh(iM)%nG
+               ! Test using integration points
+               N1 = msh(iM)%N(:,g1)
+               xa = 0._RKIND
+               DO a = 1, eNoN1
+                  xa(:) = xa(:) + x1(:,a)*N1(a)
+               END DO 
+               ! Test using integration points
                DO g2=1, msh(jM)%nG
+                  ! Test using integration points
+                  N2 = msh(jM)%N(:,g2)
+                  xb = 0._RKIND
+                  DO b = 1, eNoN2
+                     xb(:) = xb(:) + x2(:,b)*N2(b)
+                  END DO 
+                  ! PRINT *, x2
+                  ! PRINT *, xb
+                  ! PRINT *, "+++++++++++++++++"
+                  ! Test using integration points
                   CALL CONTACTPTNL3D(msh(iM), msh(jM), eNoN1, 
      2                  eNoN2, g1, g2, xa, xb, sJ0(giEl), sJ0(gjEl),
-     3                  sF(:,giEl), sF(:,gjEl), lR, lK1, lK2, 
+     3                  sF(:,giEl), sF(:,gjEl), lR, lR2, lK1, lK2, 
      4                  giEl, gjEl)
                   ! To delete giEl gjEl; for debug
                END DO
@@ -471,7 +496,11 @@
             ! Note that here we only consider the same kinds of elems
             ! are used for both surfaces. If different kinds of elems
             ! are used, this needs to be modified.
-            lK2 = 0._RKIND
+            ! lR2 = 0._RKIND
+            ! PRINT *, "-------lK2---------------"
+            ! PRINT *, lK2
+            ! PRINT *, "-------------------------"
+            ! lK2 = 0._RKIND
 #ifdef WITH_TRILINOS
             IF (eq(cEq)%assmTLS) THEN
                CALL TRILINOS_DOASSEM(eNoN2, ptr2, lK2, lR2)
@@ -481,10 +510,28 @@
 #ifdef WITH_TRILINOS
             END IF
 #endif 
-            DEALLOCATE(x2, ptr2, lR2, lK2) 
+            DEALLOCATE(x2, ptr2, N2, lR2, lK2) 
          END DO 
          ! Assembly lR lK1
-         lK1 = 0._RKIND
+         ! IF (giEl .EQ. 3) THEN
+         !    PRINT *, "=======E3==============="
+         !    PRINT *, "-------lR---------------"
+         !    PRINT *, lR
+         !    PRINT *, "-------------------------"
+         !    PRINT *, "-------lK1---------------"
+         !    PRINT *, lK1
+         !    PRINT *, "-------------------------"
+         ! END IF
+         ! IF (giEl .EQ. 45) THEN
+         !    PRINT *, "=======E45=============="
+         !    PRINT *, "-------lR---------------"
+         !    PRINT *, lR
+         !    PRINT *, "-------------------------"
+         !    PRINT *, "-------lK1---------------"
+         !    PRINT *, lK1
+         !    PRINT *, "-------------------------"
+         ! END IF
+         ! lK1 = 0._RKIND
 #ifdef WITH_TRILINOS
          IF (eq(cEq)%assmTLS) THEN
             CALL TRILINOS_DOASSEM(eNoN1, ptr1, lK1, lR)
@@ -494,15 +541,38 @@
 #ifdef WITH_TRILINOS
          END IF
 #endif 
-         DEALLOCATE(x1, ptr1, lR, lK1)     
+         DEALLOCATE(x1, ptr1, N1, lR, lK1)     
       END DO
       DEALLOCATE(sJ0, sF, sI, bBox)
+
+      ! DEBUG R 
+
+      ! DO iM=1, nMsh
+      !    PRINT *, TRIM(msh(iM)%name)
+      !    gnNo = msh(iM)%gnNo
+      !    DO a=1, gnNo
+      !       PRINT *, a, R(:, a)
+      !    END DO
+      ! END DO
+
+      ! fid = 1889
+      ! DO iM=1, nMsh
+      !    WRITE(fid,'(A)') "Mesh: <"//TRIM(msh(iM)%name)//">"
+      !    gnNo = msh(iM)%gnNo
+      !    DO a=1, gnNo
+      !       WRITE(fid,'(A)',ADVANCE='NO') STR(a)
+      !       DO i=1, dof
+      !          WRITE(fid,'(A)',ADVANCE='NO') " "//STR(R(i,a))
+      !       END DO
+      !       WRITE(fid,'(A)')
+      !    END DO
+      ! END DO
 
       RETURN
       END SUBROUTINE CONSTRUCT_CONTACTPTNL
 !----------------------------------------------------------------------     
       SUBROUTINE CONTACTPTNL3D (lM1, lM2, eNoN1, eNoN2, g1, g2, xa, xb,
-     2                   J10, J20, nV1, nV2, lR, lK1, lK2, giEl, gjEl)  
+     2               J10, J20, nV1, nV2, lR, lR2, lK1, lK2, giEl, gjEl)  
       USE COMMOD
       USE ALLFUN
       USE MATFUN
@@ -512,7 +582,7 @@
      2                gjEl
       REAL(KIND=RKIND), INTENT(IN) ::  xa(nsd), xb(nsd), J10, J20, 
      2                nV1(3), nV2(3)                           
-      REAL(KIND=RKIND), INTENT(INOUT) :: lR(dof,eNoN1), 
+      REAL(KIND=RKIND), INTENT(INOUT) :: lR(dof,eNoN1), lR2(dof,eNoN1),
      2   lK1(dof*dof,eNoN1,eNoN1), lK2(dof*dof,eNoN1,eNoN2)
 
       INTEGER(KIND=IKIND) :: a, b  
@@ -555,6 +625,11 @@
          lR(2,a) = lR(2,a) - w12*N1(a)*fs*nk(2)
          lR(3,a) = lR(3,a) - w12*N1(a)*fs*nk(3)
       END DO
+      ! DO a=1, eNoN1
+      !    lR2(1,a) = lR2(1,a) + w12*N1(a)*fs*nk(1)
+      !    lR2(2,a) = lR2(2,a) + w12*N1(a)*fs*nk(2)
+      !    lR2(3,a) = lR2(3,a) + w12*N1(a)*fs*nk(3)
+      ! END DO
       
       DO a=1, eNoN1
          DO b=1, eNoN1
@@ -586,3 +661,335 @@
       
       END SUBROUTINE CONTACTPTNL3D
 !####################################################################
+!####################################################################
+!     This is the potential-based contact model; referring to  
+!     Ateshian et al. 2010, 2-pass 
+!--------------------------------
+      SUBROUTINE CONSTRUCT_CONTACTSLID(Dg)
+      USE ALLFUN
+      USE COMMOD
+      IMPLICIT NONE
+      REAL(KIND=RKIND), INTENT(IN) :: Dg(tDof,tnNo)
+
+      INTEGER(KIND=IKIND) :: i, j, k, l, m, iM, jM, e, a, b, Ac, Bc,
+     2   eNoN, insd, maxNnb, eNoN1, eNoN2, e1, e2, gnEl, giEl, gjEl,
+     3   g1, g2, S2id
+      REAL(KIND=RKIND) :: Jac, nV1(nsd), xmin(nsd), Jac0, nV0(nsd),
+     2   xmax(nsd), xa(nsd), xb(nsd), xab(nsd), int_p(nsd), int_t, 
+     3   int_tA 
+      LOGICAL :: int_flg
+
+      INTEGER(KIND=IKIND), ALLOCATABLE :: bBox(:,:), ptr1(:),
+     2    ptr2(:), sI(:,:)
+      REAL(KIND=RKIND), ALLOCATABLE :: sJ0(:),sF(:,:), Nx(:,:),
+     2   gCov(:,:), gCnv(:,:), xc(:,:), x1(:,:), x2(:,:), x0(:,:), 
+     3   lR(:,:), lR2(:,:), lK1(:,:,:), lK2(:,:,:), N1(:), N2(:)
+
+      IF (eq(cEq)%phys .NE. phys_shell) RETURN
+
+      i   = eq(cEq)%s
+      j   = i + 1
+      k   = j + 1
+
+!     Get global information of each element 
+!     Using global element id might cause problems in para. comput.
+!     Try and consider to change it to use surf. id + elem. id
+      gnEl = 0
+      DO iM=1, nMsh
+         gnEl = gnEl + msh(iM)%nEl
+      END DO
+      giEl = 0
+      ALLOCATE(sF(nsd,gnEl), sI(2,gnEl), sJ0(gnEl))
+      sF = 0._RKIND
+      sI = 0
+      sJ0 = 0._RKIND
+      DO iM=1, nMsh
+         IF (.NOT.msh(iM)%lShl) CYCLE
+         eNoN = msh(iM)%eNoN
+         insd = nsd - 1
+         ALLOCATE(Nx(insd,eNoN), gCov(nsd,insd), 
+     2      gCnv(nsd,insd), x0(nsd,eNoN), xc(nsd,eNoN))
+         Nx = msh(iM)%Nx(:,:,1)
+         DO e=1, msh(iM)%nEl
+            giEl = giEl + 1
+            DO a=1, eNoN
+               Ac = msh(iM)%IEN(a,e)
+               x0(1,a) = x(1,Ac)
+               x0(2,a) = x(2,Ac)
+               x0(3,a) = x(3,Ac)
+               xc(1,a) = x(1,Ac) + Dg(i,Ac)
+               xc(2,a) = x(2,Ac) + Dg(j,Ac)
+               xc(3,a) = x(3,Ac) + Dg(k,Ac)
+            END DO
+            CALL GNNS(eNoN, Nx, x0, nV0, gCov, gCnv)
+            Jac0 = SQRT(NORM(nV0(:))) 
+            nV0(:) = nV0(:)/Jac0
+            sJ0(giEl) = Jac0
+            CALL GNNS(eNoN, Nx, xc, nV1, gCov, gCnv)
+            Jac = SQRT(NORM(nV1(:))) 
+            nV1(:) = nV1(:)/Jac  
+            IF (msh(iM)%lSFp) nV1 = -nV1
+            sF(:,giEl) = nV1(:) ! Element normal
+            sI(1,giEl) = iM 
+            sI(2,giEl) = e
+         END DO
+         DEALLOCATE(Nx, x0, xc, gCov, gCnv)
+      END DO
+
+!     Compute the corresponding local residual and stiffness for 
+!     each elem
+      
+      DO giEl=1, gnEl
+         iM = sI(1,giEl)
+         eNoN1 = msh(iM)%eNoN
+         ALLOCATE(x1(nsd,eNoN1), ptr1(eNoN1), lR(dof,eNoN1),
+     2           lK1(dof*dof, eNoN1, eNoN1), N1(eNoN1)) 
+         lR = 0._RKIND
+         lK1= 0._RKIND 
+         e1 = sI(2,giEl)
+         xa = 0._RKIND   ! Centroid on surf1
+         DO a=1, eNoN1
+            Ac = msh(iM)%IEN(a,e1)
+            ptr1(a) = Ac
+            x1(1,a) = x(1,Ac) + Dg(i,Ac)
+            x1(2,a) = x(2,Ac) + Dg(j,Ac)
+            x1(3,a) = x(3,Ac) + Dg(k,Ac)
+
+            xa(:) = xa(:) + x1(:,a)
+         END DO
+         xa = xa / REAL(eNoN1, KIND=RKIND)
+
+         int_tA = 2._RKIND * cntctM%Rout 
+         DO gjEl=1, gnEl
+            jM = sI(1,gjEl)
+            IF (iM .EQ. jM) CYCLE 
+            eNoN2 = msh(jM)%eNoN
+            e2 = sI(2,gjEl)
+            ! xb = 0._RKIND   ! Centroid on surf2
+            DO b=1, eNoN2
+               Bc = msh(jM)%IEN(b,e2)
+               ptr2(b) = Bc
+               x2(1,b) = x(1,Bc) + Dg(i,Bc)
+               x2(2,b) = x(2,Bc) + Dg(j,Bc)
+               x2(3,b) = x(3,Bc) + Dg(k,Bc)
+               
+               ! xb(:) = xb(:) + x2(:,b)
+            END DO
+            ! xb = xb / REAL(eNoN2, KIND=RKIND)
+            CALL INTERSECT_POINT(x2, eNoN1, xa, sF(:, giEl), int_flg, 
+     2                            int_p, int_t)
+            IF (int_flg .EQV. .FALSE.) CYCLE 
+            IF (int_t < int_tA) THEN
+               int_tA = int_t 
+               xb = int_p 
+               S2id = gjEl 
+            END IF 
+         END DO
+         gjEl = S2id
+         jM = sI(1,gjEl)
+         eNoN2 = msh(jM)%eNoN
+         ALLOCATE(x2(nsd,eNoN2),ptr2(eNoN2),lR2(dof,eNoN2),
+     2          lK2(dof*dof, eNoN1, eNoN2), N2(eNoN2)) 
+         lR2  = 0._RKIND     
+         lK2  = 0._RKIND
+         e2 = sI(2,gjEl)
+         ! xb = 0._RKIND   ! Centroid on surf2
+         DO b=1, eNoN2
+            Bc = msh(jM)%IEN(b,e2)
+            ptr2(b) = Bc
+            x2(1,b) = x(1,Bc) + Dg(i,Bc)
+            x2(2,b) = x(2,Bc) + Dg(j,Bc)
+            x2(3,b) = x(3,Bc) + Dg(k,Bc)
+               
+            ! xb(:) = xb(:) + x2(:,b)
+         END DO
+
+         DO g1=1, msh(iM)%nG
+            CALL CONTACTSLID3D(msh(iM), eNoN1, eNoN1, g1, xa, xb, 
+     2            sJ0(giEl), sF(:,giEl), lR, lK1, lK2, giEl, gjEl)
+               ! To delete giEl gjEl; for debug
+         END DO
+         lR2 = lR
+         ! Assembly lK2
+         ! Note that here we only consider the same kinds of elems
+         ! are used for both surfaces. If different kinds of elems
+         ! are used, this needs to be modified.
+         ! PRINT *, "-------lK2---------------"
+         ! PRINT *, lK2
+         ! PRINT *, "-------------------------"
+         ! lK2 = 0._RKIND
+
+#ifdef WITH_TRILINOS
+         IF (eq(cEq)%assmTLS) THEN
+            CALL TRILINOS_DOASSEM(eNoN2, ptr2, lK2, lR2)
+         ELSE
+#endif
+            CALL DOASSEM(eNoN2, ptr2, lK2, lR2)
+#ifdef WITH_TRILINOS
+         END IF
+#endif 
+         DEALLOCATE(x2, ptr2, N2, lR2, lK2) 
+         ! Assembly lR lK1
+         ! PRINT *, "-------lK1---------------"
+         ! PRINT *, lK1
+         ! PRINT *, "-------------------------"
+         ! lK1 = 0._RKIND
+#ifdef WITH_TRILINOS
+         IF (eq(cEq)%assmTLS) THEN
+            CALL TRILINOS_DOASSEM(eNoN1, ptr1, lK1, lR)
+         ELSE
+#endif
+            CALL DOASSEM(eNoN1, ptr1, lK1, lR)
+#ifdef WITH_TRILINOS
+         END IF
+#endif 
+         DEALLOCATE(x1, ptr1, N1, lR, lK1)     
+      END DO
+      DEALLOCATE(sJ0, sF, sI, bBox)
+
+      RETURN
+      END SUBROUTINE CONSTRUCT_CONTACTSLID
+
+!==================================================
+      SUBROUTINE INTERSECT_POINT(x2, eNoN, r_0, r_n, int_flg, int_p, t)
+      USE ALLFUN
+      USE COMMOD
+      IMPLICIT NONE
+      INTEGER(KIND=IKIND), INTENT(IN) :: eNoN
+      REAL(KIND=RKIND), INTENT(IN) :: x2(nsd, eNoN), r_0(nsd), r_n(nsd) 
+      REAL(KIND=RKIND), INTENT(OUT) :: int_p(nsd), t
+      LOGICAL, INTENT(OUT) :: int_flg 
+
+      INTEGER(KIND=IKIND) :: i, j
+      REAL(KIND=RKIND) :: E1(nsd), E2(nsd), N(nsd), det, 
+     2   invdet, A0(nsd), DA0(nsd), u, v  
+
+      IF (eNoN > 3) THEN
+         err = "Currently intersect_point only supports triangle elem"
+      END IF
+
+      E1 = x2(:,2) - x2(:,1)
+      E2 = x2(:,3) - x2(:,2) 
+      N  = CROSS2(E1, E2) 
+      det = -VEC_DOT(r_n, N)
+      invdet = 1._RKIND/det
+      A0 = r_0 - x2(:,1) 
+      DA0 = CROSS2(A0, r_n) 
+
+      u = VEC_DOT(E2, DA0) * invdet 
+      v = -VEC_DOT(E1, DA0) * invdet 
+      t = VEC_DOT(A0, N) * invdet 
+
+      int_flg = .FALSE. 
+      int_p   = 0._RKIND 
+      IF (det.GE.1.E-6_RKIND .AND. t.GE.0._RKIND .AND.
+     2    u.GE.0._RKIND .AND. v.GE.0._RKIND .AND.
+     3    (u + v).LE.0._RKIND ) THEN
+         int_flg = .TRUE. 
+         int_p = r_0 + t * r_n 
+      END IF
+
+      RETURN
+      END SUBROUTINE INTERSECT_POINT 
+
+!----------------------------------------------------------------------     
+      SUBROUTINE CONTACTSLID3D (lM1, eNoN1, eNoN2, g1, xa, xb, J10, nV1, 
+     2                                     lR, lK1, lK2, giEl, gjEl)  
+      USE COMMOD
+      USE ALLFUN
+      USE MATFUN
+      IMPLICIT NONE
+      TYPE(mshType), INTENT(IN) :: lM1
+      INTEGER(KIND=IKIND), INTENT(IN) :: eNoN1, eNoN2, g1, giEl, gjEl             
+      REAL(KIND=RKIND), INTENT(IN) ::  xa(nsd), xb(nsd), J10, nV1(3)                           
+      REAL(KIND=RKIND), INTENT(INOUT) :: lR(dof,eNoN1), 
+     2   lK1(dof*dof,eNoN1,eNoN1), lK2(dof*dof,eNoN1,eNoN2)
+
+      INTEGER(KIND=IKIND) :: a, b  
+      REAL(KIND=RKIND) :: fs, nk(3), gk, pl, Rout, wJ, dfs, fsij(3,3)
+      REAL(KIND=RKIND), ALLOCATABLE :: N1(:)
+
+      ALLOCATE(N1(eNoN1))
+
+      pl = cntctM%p
+      Rout = cntctM%Rout
+
+      nk = xa - xb
+      gk = SQRT(NORM(nk))
+      ! From the paper; to rethink the nk definition
+      nk = nk/gk
+
+      ! Contact model
+      fs = 0._RKIND
+      dfs = 0._RKIND
+      IF (gk < Rout) THEN
+         fs = pl * (gk - Rout) 
+         dfs = pl
+      END IF
+      fsij = fs/gk*MAT_ID(3) + (dfs-fs/gk)*MAT_DYADPROD(nk,nk,3)
+
+      wJ = lM1%w(g1)*J10
+      N1 = lM1%N(:,g1)
+      DO a=1, eNoN1
+         lR(1,a) = lR(1,a) - wJ*N1(a)*fs*nk(1)
+         lR(2,a) = lR(2,a) - wJ*N1(a)*fs*nk(2)
+         lR(3,a) = lR(3,a) - wJ*N1(a)*fs*nk(3)
+      END DO
+      
+      DO a=1, eNoN1
+         DO b=1, eNoN1
+            lK1(1,a,b) = lK1(1,a,b) + wJ*N1(a)*N1(b)*fsij(1,1)
+            lK1(2,a,b) = lK1(2,a,b) + wJ*N1(a)*N1(b)*fsij(1,2)
+            lK1(3,a,b) = lK1(3,a,b) + wJ*N1(a)*N1(b)*fsij(1,3)
+            lK1(4,a,b) = lK1(4,a,b) + wJ*N1(a)*N1(b)*fsij(2,1)
+            lK1(5,a,b) = lK1(5,a,b) + wJ*N1(a)*N1(b)*fsij(2,2)
+            lK1(6,a,b) = lK1(6,a,b) + wJ*N1(a)*N1(b)*fsij(2,3)
+            lK1(7,a,b) = lK1(7,a,b) + wJ*N1(a)*N1(b)*fsij(3,1)
+            lK1(8,a,b) = lK1(8,a,b) + wJ*N1(a)*N1(b)*fsij(3,2)
+            lK1(9,a,b) = lK1(9,a,b) + wJ*N1(a)*N1(b)*fsij(3,3)
+         END DO
+      END DO
+      DO a=1, eNoN1
+         DO b=1, eNoN2
+            lK2(1,a,b) = lK2(1,a,b) - wJ*N1(a)*N1(b)*fsij(1,1)
+            lK2(2,a,b) = lK2(2,a,b) - wJ*N1(a)*N1(b)*fsij(1,2)
+            lK2(3,a,b) = lK2(3,a,b) - wJ*N1(a)*N1(b)*fsij(1,3)
+            lK2(4,a,b) = lK2(4,a,b) - wJ*N1(a)*N1(b)*fsij(2,1)
+            lK2(5,a,b) = lK2(5,a,b) - wJ*N1(a)*N1(b)*fsij(2,2)
+            lK2(6,a,b) = lK2(6,a,b) - wJ*N1(a)*N1(b)*fsij(2,3)
+            lK2(7,a,b) = lK2(7,a,b) - wJ*N1(a)*N1(b)*fsij(3,1)
+            lK2(8,a,b) = lK2(8,a,b) - wJ*N1(a)*N1(b)*fsij(3,2)
+            lK2(9,a,b) = lK2(9,a,b) - wJ*N1(a)*N1(b)*fsij(3,3)
+         END DO
+      END DO
+      DO a=1, eNoN1
+         DO b=1, eNoN2
+            lK2(1,a,b) = lK2(1,a,b) - wJ*N1(a)*N1(b)*fsij(1,1)
+            lK2(2,a,b) = lK2(2,a,b) - wJ*N1(a)*N1(b)*fsij(1,2)
+            lK2(3,a,b) = lK2(3,a,b) - wJ*N1(a)*N1(b)*fsij(1,3)
+            lK2(4,a,b) = lK2(4,a,b) - wJ*N1(a)*N1(b)*fsij(2,1)
+            lK2(5,a,b) = lK2(5,a,b) - wJ*N1(a)*N1(b)*fsij(2,2)
+            lK2(6,a,b) = lK2(6,a,b) - wJ*N1(a)*N1(b)*fsij(2,3)
+            lK2(7,a,b) = lK2(7,a,b) - wJ*N1(a)*N1(b)*fsij(3,1)
+            lK2(8,a,b) = lK2(8,a,b) - wJ*N1(a)*N1(b)*fsij(3,2)
+            lK2(9,a,b) = lK2(9,a,b) - wJ*N1(a)*N1(b)*fsij(3,3)
+         END DO
+      END DO
+      DO a=1, eNoN1
+         DO b=1, eNoN2
+            lK2(1,a,b) = lK2(1,a,b) - wJ*N1(a)*N1(b)*fsij(1,1)
+            lK2(2,a,b) = lK2(2,a,b) - wJ*N1(a)*N1(b)*fsij(1,2)
+            lK2(3,a,b) = lK2(3,a,b) - wJ*N1(a)*N1(b)*fsij(1,3)
+            lK2(4,a,b) = lK2(4,a,b) - wJ*N1(a)*N1(b)*fsij(2,1)
+            lK2(5,a,b) = lK2(5,a,b) - wJ*N1(a)*N1(b)*fsij(2,2)
+            lK2(6,a,b) = lK2(6,a,b) - wJ*N1(a)*N1(b)*fsij(2,3)
+            lK2(7,a,b) = lK2(7,a,b) - wJ*N1(a)*N1(b)*fsij(3,1)
+            lK2(8,a,b) = lK2(8,a,b) - wJ*N1(a)*N1(b)*fsij(3,2)
+            lK2(9,a,b) = lK2(9,a,b) - wJ*N1(a)*N1(b)*fsij(3,3)
+         END DO
+      END DO
+      DEALLOCATE(N1)
+      
+      END SUBROUTINE CONTACTSLID3D
+!####################################################################
+!##################################################

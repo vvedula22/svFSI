@@ -469,6 +469,8 @@
       TYPE cntctModelType
 !        Contact model
          INTEGER(KIND=IKIND) :: cType = cntctM_NA
+!        Allow self contact
+         LOGICAL :: lSSC = .FALSE.
 !        Penalty parameter
          REAL(KIND=RKIND) k
 !        Min depth of penetration

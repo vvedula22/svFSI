@@ -498,6 +498,7 @@
          lPM => list%get(ctmp, "Contact model")
          IF (ASSOCIATED(lPM)) THEN
             iCntct = .TRUE.
+            lPtr => lPM%get(cntctM%lSSC, "Allow self contact")
             SELECT CASE (TRIM(ctmp))
             CASE ("penalty")
                cntctM%cType = cntctM_penalty
@@ -520,6 +521,14 @@
      2            "p", 1, ll=4._RKIND)
                lPtr => lPM%get(cntctM%Rin,
      2            "Rin", 1, lb=0._RKIND)
+               lPtr => lPM%get(cntctM%Rout,
+     2            "Rout", 1, lb=0._RKIND)
+               IF (cntctM%Rout .LT. cntctM%Rin) err =
+     2            "Choose Rout > Rin for proper contact penalization"
+            CASE ("elastic_slide")
+               cntctM%cType = cntctM_slide
+               lPtr => lPM%get(cntctM%k,
+     2            "k", 1, ll=0._RKIND)
                lPtr => lPM%get(cntctM%Rout,
      2            "Rout", 1, lb=0._RKIND)
                IF (cntctM%Rout .LT. cntctM%Rin) err =
