@@ -72,7 +72,7 @@
 
       ALLOCATE(ptr(eNoN), xl(nsd,eNoN), al(tDof,eNoN), yl(tDof,eNoN),
      2   dl(tDof,eNoN), bfl(nsd,eNoN), fN(nsd,nFn), pS0l(nsymd,eNoN),
-     3   pSl(nsymd), tmXl(eNoN), ya_l(eNoN), lR(dof,eNoN), 
+     3   pSl(nsymd), tmXl(eNoN), ya_l(eNoN), lR(dof,eNoN),
      4   lK(dof*dof,eNoN,eNoN), lKd(dof*nsd,eNoN,eNoN))
 
 !     Loop over all elements of mesh
@@ -300,7 +300,7 @@
 #endif
       END DO ! e: loop
 
-      DEALLOCATE(ptr, xl, al, yl, dl, bfl, fN, pS0l, pSl, tmXl, ya_l, 
+      DEALLOCATE(ptr, xl, al, yl, dl, bfl, fN, pS0l, pSl, tmXl, ya_l,
      2    lR, lK, lKd)
 
       CALL DESTROY(fs(1))

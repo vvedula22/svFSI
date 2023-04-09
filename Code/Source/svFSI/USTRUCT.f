@@ -221,7 +221,7 @@
      3   VxFi(3,eNoNw), ddev(3,3), Svis(3,3), Siso(3,3), Dm(6,6), tauM,
      4   tauC, rC, rCl, Pdev(3,3), NxFi(3,eNoNw), Bm(6,3,eNoNw),
      5   VxNx(3,eNoNw), DdNx(3,eNoNw), DBm(6,3), BtDB, NxSNx, NxNx,
-     6   Ku, tmXg, T1, T2, T3, Tv, r13, r23, Pvis(3,3)
+     6   Ku, tmXg, T1, T2, T3, Tv, r13, r23
 
 !     Define parameters
       mu      = eq(cEq)%dmn(cDmn)%prop(solid_viscosity)
@@ -297,6 +297,19 @@
       CALL GETPK2CCdev(eq(cEq)%dmn(cDmn), F, nFn, fN, tmXg, ya_g, Siso,
      2   Dm, Ja)
 
+!----------------------------------
+!     Viscous contribution
+!     Velocity gradient in current configuration
+      VxFi = MATMUL(vx, Fi)
+
+!     Deviatoric strain tensor
+      ddev = MAT_DEV(MAT_SYMM(VxFi,3), 3)
+
+!     2nd Piola-Kirchhoff stress due to viscosity
+      Svis = MATMUL(ddev, TRANSPOSE(Fi))
+      Svis = 2._RKIND*mu*Jac*MATMUL(Fi, Svis)
+!----------------------------------
+
 !     Compute rho and beta depending on the volumetric penalty model
       CALL GVOLPEN(eq(cEq)%dmn(cDmn), p, rho, beta, drho, dbeta, Ja)
 
@@ -308,27 +321,45 @@
          tauC = 0._RKIND
       END IF
 
-!----------------------------------
-!     Viscous contribution
-      VxFi = MATMUL(vx, Fi) 
-
-!     Deviatoric strain tensor
-      ddev = MAT_DEV(MAT_SYMM(VxFi,3), 3)
-
-!     2nd Piola-Kirchhoff stress due to viscosity
-      Svis = MATMUL(ddev, TRANSPOSE(Fi))
-      Svis = 2._RKIND*mu*Jac*MATMUL(Fi, Svis)
-
-!     1st PK stress due to viscosity 
-      ! Pvis = 2._RKIND*mu*Jac*MATMUL(ddev, TRANSPOSE(Fi)) 
-      Pvis = MATMUL(F, Svis)  
-
 !     Total isochoric 2nd Piola-Kirchhoff stress
       Siso = Siso + Svis
 
 !     Deviatoric 1st Piola-Kirchhoff tensor (P)
       Pdev = MATMUL(F, Siso)
-!-------------------
+
+!     Shape function gradients in the current configuration
+      DO a=1, eNoNw
+         NxFi(1,a) = Nwx(1,a)*Fi(1,1) + Nwx(2,a)*Fi(2,1) +
+     2      Nwx(3,a)*Fi(3,1)
+         NxFi(2,a) = Nwx(1,a)*Fi(1,2) + Nwx(2,a)*Fi(2,2) +
+     2      Nwx(3,a)*Fi(3,2)
+         NxFi(3,a) = Nwx(1,a)*Fi(1,3) + Nwx(2,a)*Fi(2,3) +
+     2      Nwx(3,a)*Fi(3,3)
+      END DO
+
+      rC  = beta*pd + VxFi(1,1) + VxFi(2,2) + VxFi(3,3)
+      rCl = -p + tauC*rC
+
+!     Local residue
+      DO a=1, eNoNw
+         T1 = Jac*rho*vd(1)*Nw(a)
+         T2 = Pdev(1,1)*Nwx(1,a) + Pdev(1,2)*Nwx(2,a) +
+     2      Pdev(1,3)*Nwx(3,a)
+         T3 = Jac*rCl*NxFi(1,a)
+         lR(1,a) = lR(1,a) + w*(T1 + T2 + T3)
+
+         T1 = Jac*rho*vd(2)*Nw(a)
+         T2 = Pdev(2,1)*Nwx(1,a) + Pdev(2,2)*Nwx(2,a) +
+     2      Pdev(2,3)*Nwx(3,a)
+         T3 = Jac*rCl*NxFi(2,a)
+         lR(2,a) = lR(2,a) + w*(T1 + T2 + T3)
+
+         T1 = Jac*rho*vd(3)*Nw(a)
+         T2 = Pdev(3,1)*Nwx(1,a) + Pdev(3,2)*Nwx(2,a) +
+     2      Pdev(3,3)*Nwx(3,a)
+         T3 = Jac*rCl*NxFi(3,a)
+         lR(3,a) = lR(3,a) + w*(T1 + T2 + T3)
+      END DO
 
 !     Auxilary quantities for computing stiffness tensors
       DO a=1, eNoNw
@@ -357,15 +388,7 @@
          Bm(6,3,a) = (Nwx(3,a)*F(3,1) + F(3,3)*Nwx(1,a))
       END DO
 
-!     Shape function gradients in the current configuration
       DO a=1, eNoNw
-         NxFi(1,a) = Nwx(1,a)*Fi(1,1) + Nwx(2,a)*Fi(2,1) +
-     2      Nwx(3,a)*Fi(3,1)
-         NxFi(2,a) = Nwx(1,a)*Fi(1,2) + Nwx(2,a)*Fi(2,2) +
-     2      Nwx(3,a)*Fi(3,2)
-         NxFi(3,a) = Nwx(1,a)*Fi(1,3) + Nwx(2,a)*Fi(2,3) +
-     2      Nwx(3,a)*Fi(3,3)
-
          DdNx(1,a) = ddev(1,1)*NxFi(1,a) + ddev(1,2)*NxFi(2,a) +
      2               ddev(1,3)*NxFi(3,a)
          DdNx(2,a) = ddev(2,1)*NxFi(1,a) + ddev(2,2)*NxFi(2,a) +
@@ -379,30 +402,6 @@
      2               VxFi(3,2)*NxFi(3,a)
          VxNx(3,a) = VxFi(1,3)*NxFi(1,a) + VxFi(2,3)*NxFi(2,a) +
      2               VxFi(3,3)*NxFi(3,a)
-      END DO
-
-      rC  = beta*pd + VxFi(1,1) + VxFi(2,2) + VxFi(3,3)
-      rCl = -p + tauC*rC
-
-!     Local residue
-      DO a=1, eNoNw
-         T1 = Jac*rho*vd(1)*Nw(a)
-         T2 = Pdev(1,1)*Nwx(1,a) + Pdev(1,2)*Nwx(2,a) +
-     2      Pdev(1,3)*Nwx(3,a)
-         T3 = Jac*rCl*NxFi(1,a)
-         lR(1,a) = lR(1,a) + w*(T1 + T2 + T3)
-
-         T1 = Jac*rho*vd(2)*Nw(a)
-         T2 = Pdev(2,1)*Nwx(1,a) + Pdev(2,2)*Nwx(2,a) +
-     2      Pdev(2,3)*Nwx(3,a)
-         T3 = Jac*rCl*NxFi(2,a)
-         lR(2,a) = lR(2,a) + w*(T1 + T2 + T3)
-
-         T1 = Jac*rho*vd(3)*Nw(a)
-         T2 = Pdev(3,1)*Nwx(1,a) + Pdev(3,2)*Nwx(2,a) +
-     2      Pdev(3,3)*Nwx(3,a)
-         T3 = Jac*rCl*NxFi(3,a)
-         lR(3,a) = lR(3,a) + w*(T1 + T2 + T3)
       END DO
 
 !     Tangent (stiffness) matrices
@@ -468,6 +467,7 @@
             Tv   = (2._RKIND*(DdNx(1,a)*NxFi(3,b) - DdNx(1,b)*NxFi(3,a))
      2           - (NxNx*VxFi(1,3) + NxFi(1,b)*VxNx(3,a)
      3           -  r23*NxFi(1,a)*VxNx(3,b)))*mu*Jac
+
             Ku   = w*af*(T1 + T2 + T3 + Tv + BtDB)
             lKd(3,a,b) = lKd(3,a,b) + Ku
 
