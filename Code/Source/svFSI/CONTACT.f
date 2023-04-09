@@ -245,8 +245,6 @@
       END DO
       DEALLOCATE(sA, sF, bBox)
 
-      ! PRINT *, lR(:, 488)
-
 !     Return if no penalty forces are to be added
       IF (SUM(incNd) .EQ. 0) RETURN
 
