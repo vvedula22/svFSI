@@ -87,6 +87,10 @@
       ELSE
          ! Computing convergence metrics to be printed to output
          ! What are all these norms?
+         ! FSILS%RI%iNorm is the norm of the residual at iteration k (before linear solve). R(t, k)
+         ! iNorm is the norm of the residual at iteration t = 0. R(t = 0)
+         ! pNorm is R(t, k = 0) / R(t = 0)
+         ! FSILS%RI%fNorm is the linear solver residual (after linear solve). KU - R(t, k)
          tmp  = eq(iEq)%FSILS%RI%iNorm/eq(iEq)%iNorm
          tmp1 = tmp/eq(iEq)%pNorm
          tmp2 = eq(iEq)%FSILS%RI%fNorm/eq(iEq)%FSILS%RI%iNorm
