@@ -47,8 +47,6 @@
          CALL CONSTRUCT_CONTACTPNLTY(Dg)
       CASE (cntctM_potential)
          CALL CONSTRUCT_CONTACTPTNL(Dg)
-      CASE (cntctM_slide)
-         CALL CONSTRUCT_CONTACTSLID(Dg)
       CASE DEFAULT
          err = "Undefined contact model"
       END SELECT
