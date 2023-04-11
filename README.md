@@ -116,4 +116,15 @@ More details can be found here:
 - Prescribed-motion LV modeling: https://simvascular.github.io/docsSimCardio.html#automatic-cardiac-modeling
 
 ## Citation
-In preparation.
+You can cite the software using the following:
+```
+@article{svfsi2022,
+  title={svFSI: a multiphysics package for integrated cardiac modeling},
+  author={Zhu, Chi and Vedula, Vijay and Parker, Dave and Wilson, Nathan and Shadden, Shawn and Marsden, Alison},
+  journal={Journal of Open Source Software},
+  volume={7},
+  number={78},
+  pages={4118},
+  year={2022}
+}
+```
