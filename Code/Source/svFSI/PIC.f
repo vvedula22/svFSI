@@ -283,9 +283,7 @@
       l4 = r1 .LE. eq(cEq)%tol*eq(cEq)%pNorm
       l5 = eq(cEq)%itr .GE. eq(cEq)%minItr
       IF (l1 .OR. l2 .OR. ((l3.OR.l4).AND.l5)) eq(cEq)%ok = .TRUE.
-
       IF (ALL(eq%ok)) RETURN
-
 
       IF (eq(cEq)%coupled) THEN
          cEq = cEq + 1
