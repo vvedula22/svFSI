@@ -177,144 +177,162 @@
       DEALLOCATE(v)
 
       END SUBROUTINE INIT_DIR_AND_COUPNEU_BC
-
 !####################################################################
-!     Compute the residual with nodal DOFs An
+!     Compute the residual and tangent matrix
 ! 
-!     How to compute the residual? Copy most of the functions from the inner loop
-!     in MAIN(). But don't want to compute tangent or solve linear system.
+!    Copy most of the functions from the inner loop
+!     in MAIN(). 
 !
-!     Compute residual and take dot product at element level, then sum to compute g.
-!     See GLOBALEQASSEM
-
-      SUBROUTINE CALCRES(Phin)
+!     kflag: a flag saying whether to compute and assemble the tangent matrix
+!     During line search loop, don't need to compute and assemble tangent
+!
+!     TODO: Wrap tangent calculation in kflag IF statements
+      SUBROUTINE CALCKR(kflag)
       USE COMMOD
+      USE ALLFUN
       IMPLICIT NONE
-      REAL(KIND=RKIND), INTENT(IN) :: Phin
-      REAL(KIND=LSRP) g, FSILS_DOTV
+      LOGICAL, INTENT(IN) :: kflag
 
-!     SKETCH. Functions taken from MAIN(). But want to eliminate functions that
-!     compute the tangent and do other unnecessary things.
+      LOGICAL l1, l2, l3
+      INTEGER(KIND=IKIND) i, iM, iBc, ierr, iEqOld, stopTS
+      REAL(KIND=RKIND) timeP(3)
 
-      An_old = An
-      Yn_old = Yn
-      Dn_old = Dn
+      INTEGER(KIND=IKIND), ALLOCATABLE :: incL(:)
+      REAL(KIND=RKIND), ALLOCATABLE :: Ag(:,:), Yg(:,:), Dg(:,:), res(:)
 
-      An = Phin
+      dbg = 'Allocating intermediate variables'
+      ALLOCATE(Ag(tDof,tnNo), Yg(tDof,tnNo), Dg(tDof,tnNo),
+     2   res(nFacesLS), incL(nFacesLS))
 
 
-      CALL PICC(Ag, Yg, Dg)
-
+      iEqOld = cEq
+!     If cplBC is being used, compute cplBC quantities (pressure, flowrate, resistance)
+!     by communicating with cplBC/genBC
+!     cplBC is invoked only for the first equation
       IF (cplBC%coupled .AND. cEq.EQ.1) THEN
-         CALL SETBCCPL
-         CALL SETBCDIR(An, Yn, Dn)
+            CALL SETBCCPL
+            CALL SETBCDIR(An, Yn, Dn)
       END IF
 
-!        Initiator step (quantities at n+am, n+af)
+!     Initiator step (quantities at n+am, n+af)
       CALL PICI(Ag, Yg, Dg)
       IF (ALLOCATED(Rd)) THEN
-         Rd = 0._RKIND
-         Kd = 0._RKIND
+            Rd = 0._RKIND
+            Kd = 0._RKIND
       END IF
 
       dbg = 'Allocating the RHS and LHS'
       CALL LSALLOC(eq(cEq))
 
-!        Compute body forces. If phys is shells or CMM (init), apply
-!        contribution from body forces (pressure) to residue
+!     Compute body forces. If phys is shells or CMM (init), apply
+!     contribution from body forces (pressure) to residue
       CALL SETBF(Dg)
 
       dbg = "Assembling equation <"//eq(cEq)%sym//">"
       DO iM=1, nMsh
-         CALL GLOBALEQASSEM(msh(iM), Ag, Yg, Dg)
-         dbg = "Mesh "//iM//" is assembled"
+            CALL GLOBALEQASSEM(msh(iM), Ag, Yg, Dg)
+            dbg = "Mesh "//iM//" is assembled"
       END DO
 
-!        Treatment of boundary conditions on faces
-!        Apply Neumman or Traction boundary conditions
+!     Treatment of boundary conditions on faces
+!     Apply Neumman or Traction boundary conditions
       CALL SETBCNEU(Yg, Dg)
 
-!        Apply CMM BC conditions
+!     Apply CMM BC conditions
       IF (.NOT.cmmInit) CALL SETBCCMM(Ag, Dg)
 
-!        Apply weakly applied Dirichlet BCs
+!     Apply weakly applied Dirichlet BCs
       CALL SETBCDIRW(Yg, Dg)
 
-!        Apply contact model and add its contribution to residue
-      IF (iCntct) CALL CONTACTFORCES(Dg)
+!     Apply contact model and add its contribution to residue
+      IF (iCntct) CALL CONSTRUCT_CONTACTPNLTY(Dg)
 
-!        Synchronize R across processes. Note: that it is important
-!        to synchronize residue, R before treating immersed bodies as
-!        ib%R is already communicated across processes
+!     Synchronize R across processes. Note: that it is important
+!     to synchronize residue, R before treating immersed bodies as
+!     ib%R is already communicated across processes
       IF (.NOT.eq(cEq)%assmTLS) CALL COMMU(R)
 
-!        Update residue in displacement equation for USTRUCT phys.
-!        Note that this step is done only first iteration. Residue
-!        will be 0 for subsequent iterations
+!     Update residue in displacement equation for USTRUCT phys.
+!     Note that this step is done only first iteration. Residue
+!     will be 0 for subsequent iterations
       IF (sstEq) CALL USTRUCTR(Yg)
 
       IF ((eq(cEq)%phys .EQ. phys_stokes) .OR.
-2          (eq(cEq)%phys .EQ. phys_fluid)  .OR.
-3          (eq(cEq)%phys .EQ. phys_ustruct).OR.
-4          (eq(cEq)%phys .EQ. phys_fsi)) THEN
-         CALL THOOD_ValRC()
+     2          (eq(cEq)%phys .EQ. phys_fluid)  .OR.
+     3          (eq(cEq)%phys .EQ. phys_ustruct).OR.
+     4          (eq(cEq)%phys .EQ. phys_fsi)) THEN
+            CALL THOOD_ValRC()
       END IF
 
-      CALL SETBCUNDEFNEU()
+!     Update LHS for clamped BC
+      CALL SETBC_CLMPD()
 
-!        IB treatment: for explicit coupling, simply construct residue.
+!     IB treatment: for explicit coupling, simply construct residue.
       IF (ibFlag) THEN
-         IF (ib%cpld .EQ. ibCpld_I) THEN
+            IF (ib%cpld .EQ. ibCpld_I) THEN
             CALL IB_IMPLICIT(Ag, Yg, Dg)
-         END IF
-         CALL IB_CONSTRUCT()
+            END IF
+            CALL IB_CONSTRUCT()
       END IF
 
       incL = 0
       IF (eq(cEq)%phys .EQ. phys_mesh) incL(nFacesLS) = 1
       IF (cmmInit) incL(nFacesLS) = 1
       DO iBc=1, eq(cEq)%nBc
-         i = eq(cEq)%bc(iBc)%lsPtr
-         IF (i .NE. 0) THEN
-!                 scaled resistance value for Neumann surface, to be "added" to stiffness matrix in LSSOLVE
+            i = eq(cEq)%bc(iBc)%lsPtr
+            IF (i .NE. 0) THEN
+!           scaled resistance value for Neumann surface, to be "added" to stiffness matrix in LSSOLVE
             res(i) = eq(cEq)%gam*dt*eq(cEq)%bc(iBc)%r 
 !                 For DEBUGGING
 !                  IF (cm%mas()) THEN
 !                     PRINT*, "iBc: ", iBc, 'i: ', i, 'res(i): ', res(i)
 !                  END IF
             incL(i) = 1
-         END IF
+            END IF
       END DO
-
-      An = An_old 
-      Yn = Yn_old
-      Dn = Dn_old
-      END SUBROUTINE CALCRES
+      END SUBROUTINE CALCKR
 !####################################################################
 
-!     Compute the scalar function g(alpha) = (Delta A)^T * G
-!     where Delta A is the Newton increment in dof and G is the residual, as 
-!     part of the Newton method linear system K * (Delta A) = - G
+!     Compute the scalar function g(alpha) = (DA0)^T * R(An0 + alpha*DA0)
+!     where Delta A is the Newton increment in dof and R is the residual, as 
+!     part of the Newton method linear system K * (DA0) = - R
+!     In this function, R is evaluated at the partial Newton step
+!     R(An0 + alpha * DA0). An0 (and Yn0, Dn0) are the dof values in
+!     the current Newton iteration, before updating with line search
 !     Used in LINESEARCH below
-      SUBROUTINE CALCG(alpha)
+      SUBROUTINE CALCG(An0, Yn0, Dn0, DA0, alpha, g)
       USE COMMOD
       IMPLICIT NONE
+      REAL(KIND=LSRP), INTENT(IN) :: An0(dof, tnNo)
+      REAL(KIND=LSRP), INTENT(IN) :: Yn0(dof, tnNo)
+      REAL(KIND=LSRP), INTENT(IN) :: Dn0(dof, tnNo)
+      REAL(KIND=LSRP), INTENT(IN) :: DA0(dof, tnNo)
       REAL(KIND=RKIND), INTENT(IN) :: alpha
-      REAL(KIND=LSRP) g, FSILS_DOTV
+      REAL(KIND=LSRP), INTENT(INOUT) :: g
 
-!     The full Newton increment in nodal DOFs
-      DA = R(a:b)
+      LOGICAL kflag
 
-!     The residual vector at this alpha. G(A + alpha * DA). 
-      G = CALCRES(A)
+!     Compute the partial Newton increment. Store in R, since we'll update
+!     with PICC, which assumes R contains the increment in acceleration
+      R = -alpha*DA0
+
+!     Set An, Yn, Dn to original (before line search) values
+      An = An0
+      Yn = Yn0
+      Dn = Dn0
+
+!     Update unknowns An, Yn, Dn with partial Newton step
+      CALL PICC
+
+!     Don't compute tangent in call to CALCKR
+      kflag = .FALSE.
+
+!     Compute residual (stored in R) at this alpha. R(An0 + alpha * DA0). 
+      CALL CALCKR(kflag)
 
 !     Compute dot product between vectors, then MPI ALL REDUCE
-      g = FSILS_DOTV(dof,lhs%mynNo, lhs%commu, DA, G)
+      g = FSILS_DOTV(dof,lhs%mynNo, lhs%commu, DA0, R)
 
-!     Reset R to the full Newton increment, since the rest of the code thinks
-!     R contains the Newton increment, not the residual
-      R = DA
-      
       END SUBROUTINE CALCG
 !####################################################################
 !     Perform a line search to determine the Newton damping parameter 
@@ -329,15 +347,31 @@
       SUBROUTINE LINESEARCH
       USE COMMOD
       IMPLICIT NONE
+      
+      REAL(KIND=RKIND) alpha, alpha_k, alpha_km1, alpha_kp1
+      REAL(KIND=RKIND) g_0, g_k, g_km1, g_kp1
+      REAL(KIND=LSRP), ALLOCATABLE :: An0(:,:), Yn0(:,:), Dn0(:,:)
+      REAL(KIND=LSRP), ALLOCATABLE :: DA0(:,:)
+
+!     Save An, Yn, Dn before line search
+      ALLOCATE(An0(dof,tnNo), Yn0(dof,tnNo), Dn0(dof,tnNo))
+      An0 = An
+      Yn0 = Yn
+      Dn0 = Dn
+
+!     Save full Newton increment DA0. After the linear solve this value
+!     is stored in -R
+      ALLOCATE(DA0(dof,tnNo))
+      DA0 = -R
 
 !     Compute g(alpha = 0)
       alpha_km1 = 0
-      g_km1 = CALCG(alpha_km1)
+      CALL CALCG(An0, Yn0, Dn0, DA0, alpha_km1, g_km1)
       g_0 = g_km1
 
 !     Compute g(alpha = 1)
       alpha_k = 0
-      g_k = CALCG(alpha_k)
+      CALL CALCG(An0, Yn0, Dn0, DA0, alpha_k, g_k)
 
 !     If there is a zero in 0 <= alpha <= 1, do secant method. Otherwise, use alpha = 1
 !     Check this by checking g(alpha = 0) * g(alpha = 1) < 0
@@ -346,15 +380,17 @@
       ELSE
          DO
 !        Get new alpha from secant method
-         alpha_kp1 = alpha_k - g_k * (alpha_k - alpha_km1) / (g_k - g_km1)
+!        TODO: Change this to regula falsi method
+         alpha_kp1 = alpha_k - g_k * (alpha_k - alpha_km1) / 
+     2     (g_k - g_km1)
 
 !        Compute g(alpha_k+1)
-         g_kp1 = CALCG(alpha_kp1)
+         CALL CALCG(An0, Yn0, Dn0, DA0, alpha_kp1, g_kp1)
 
 !        Check if |g(alpha_k+1)| < 0.8 |g(alpha_0)|
          IF (ABS(g_kp1) < 0.8 * ABS(g_0)) THEN
             alpha = alpha_kp1
-            EXIT
+            RETURN
          END IF
          END DO
       END IF

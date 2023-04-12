@@ -172,7 +172,7 @@
       END SUBROUTINE PICI
 !====================================================================
 !     This is the corrector. Decision for next eqn is also made here
-      SUBROUTINE PICC(Ag, Yg, Dg)
+      SUBROUTINE PICC
       USE COMMOD
       USE ALLFUN
       IMPLICIT NONE
@@ -267,9 +267,6 @@
 !     IB treatment
       IF (ibFlag) CALL IB_PICC()
 
-      IF (linesearch) THEN 
-         RETURN
-      END
 !     Check for convergence or max iterations of Newton-Raphson iteration
       IF (ISZERO(eq(cEq)%FSILS%RI%iNorm)) eq(cEq)%FSILS%RI%iNorm = eps
       IF (ISZERO(eq(cEq)%iNorm)) eq(cEq)%iNorm = eq(cEq)%FSILS%RI%iNorm
