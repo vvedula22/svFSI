@@ -41,7 +41,7 @@
       USE ALLFUN
       IMPLICIT NONE
 
-      LOGICAL l1, l2, l3
+      LOGICAL l1, l2, l3, kflag
       INTEGER(KIND=IKIND) i, iM, iBc, ierr, iEqOld, stopTS
       REAL(KIND=RKIND) timeP(3)
 
@@ -116,94 +116,12 @@
 
 !     Inner loop for iteration
          DO
-
-!           BEGIN CALCKR. Remove eq(cEq)%itr = eq(cEq)%itr + 1 from PICI
-
             iEqOld = cEq
-!           If cplBC is being used, compute cplBC quantities (pressure, flowrate, resistance)
-!           by communicating with cplBC/genBC
-!           cplBC is invoked only for the first equation
-            IF (cplBC%coupled .AND. cEq.EQ.1) THEN
-               CALL SETBCCPL
-               CALL SETBCDIR(An, Yn, Dn)
-            END IF
-
-!        Initiator step (quantities at n+am, n+af)
-            CALL PICI(Ag, Yg, Dg)
-            IF (ALLOCATED(Rd)) THEN
-               Rd = 0._RKIND
-               Kd = 0._RKIND
-            END IF
-
-            dbg = 'Allocating the RHS and LHS'
-            CALL LSALLOC(eq(cEq))
-
-!        Compute body forces. If phys is shells or CMM (init), apply
-!        contribution from body forces (pressure) to residue
-            CALL SETBF(Dg)
-
-            dbg = "Assembling equation <"//eq(cEq)%sym//">"
-            DO iM=1, nMsh
-               CALL GLOBALEQASSEM(msh(iM), Ag, Yg, Dg)
-               dbg = "Mesh "//iM//" is assembled"
-            END DO
-
-!        Treatment of boundary conditions on faces
-!        Apply Neumman or Traction boundary conditions
-            CALL SETBCNEU(Yg, Dg)
-
-!        Apply CMM BC conditions
-            IF (.NOT.cmmInit) CALL SETBCCMM(Ag, Dg)
-
-!        Apply weakly applied Dirichlet BCs
-            CALL SETBCDIRW(Yg, Dg)
-
-!        Apply contact model and add its contribution to residue
-            IF (iCntct) CALL CONSTRUCT_CONTACTPNLTY(Dg)
-
-!        Synchronize R across processes. Note: that it is important
-!        to synchronize residue, R before treating immersed bodies as
-!        ib%R is already communicated across processes
-            IF (.NOT.eq(cEq)%assmTLS) CALL COMMU(R)
-
-!        Update residue in displacement equation for USTRUCT phys.
-!        Note that this step is done only first iteration. Residue
-!        will be 0 for subsequent iterations
-            IF (sstEq) CALL USTRUCTR(Yg)
-
-            IF ((eq(cEq)%phys .EQ. phys_stokes) .OR.
-     2          (eq(cEq)%phys .EQ. phys_fluid)  .OR.
-     3          (eq(cEq)%phys .EQ. phys_ustruct).OR.
-     4          (eq(cEq)%phys .EQ. phys_fsi)) THEN
-               CALL THOOD_ValRC()
-            END IF
-
-!        Update LHS for clamped BC
-            CALL SETBC_CLMPD()
-
-!        IB treatment: for explicit coupling, simply construct residue.
-            IF (ibFlag) THEN
-               IF (ib%cpld .EQ. ibCpld_I) THEN
-                  CALL IB_IMPLICIT(Ag, Yg, Dg)
-               END IF
-               CALL IB_CONSTRUCT()
-            END IF
-
-            incL = 0
-            IF (eq(cEq)%phys .EQ. phys_mesh) incL(nFacesLS) = 1
-            IF (cmmInit) incL(nFacesLS) = 1
-            DO iBc=1, eq(cEq)%nBc
-               i = eq(cEq)%bc(iBc)%lsPtr
-               IF (i .NE. 0) THEN
-!                 scaled resistance value for Neumann surface, to be "added" to stiffness matrix in LSSOLVE
-                  res(i) = eq(cEq)%gam*dt*eq(cEq)%bc(iBc)%r 
-!                 For DEBUGGING
-!                  IF (cm%mas()) THEN
-!                     PRINT*, "iBc: ", iBc, 'i: ', i, 'res(i): ', res(i)
-!                  END IF
-                  incL(i) = 1
-               END IF
-            END DO
+            
+!           BEGIN CALCKR. Remove eq(cEq)%itr = eq(cEq)%itr + 1 from PICI
+            kflag = .TRUE.
+            CALL CALCKR(kflag, eq(cEq), incL, res)
+            
 
 !           END CALCKR
             dbg = "Solving equation <"//eq(cEq)%sym//">"

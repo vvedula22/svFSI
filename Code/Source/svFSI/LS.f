@@ -187,25 +187,27 @@
 !     During line search loop, don't need to compute and assemble tangent
 !
 !     TODO: Wrap tangent calculation in kflag IF statements
-      SUBROUTINE CALCKR(kflag)
+      SUBROUTINE CALCKR(kflag, lEq, incL, res)
       USE COMMOD
       USE ALLFUN
       IMPLICIT NONE
       LOGICAL, INTENT(IN) :: kflag
+      TYPE(eqType), INTENT(INOUT) :: lEq
+      INTEGER(KIND=IKIND), INTENT(INOUT) :: incL(nFacesLS)
+      REAL(KIND=RKIND), INTENT(INOUT) :: res(nFacesLS) ! Neumann cplBC resistance
+
 
       LOGICAL l1, l2, l3
-      INTEGER(KIND=IKIND) i, iM, iBc, ierr, iEqOld, stopTS
+      INTEGER(KIND=IKIND) i, iM, iBc, ierr, stopTS
       REAL(KIND=RKIND) timeP(3)
 
-      INTEGER(KIND=IKIND), ALLOCATABLE :: incL(:)
-      REAL(KIND=RKIND), ALLOCATABLE :: Ag(:,:), Yg(:,:), Dg(:,:), res(:)
+      REAL(KIND=RKIND), ALLOCATABLE :: Ag(:,:), Yg(:,:), Dg(:,:)
 
       dbg = 'Allocating intermediate variables'
-      ALLOCATE(Ag(tDof,tnNo), Yg(tDof,tnNo), Dg(tDof,tnNo),
-     2   res(nFacesLS), incL(nFacesLS))
+      ALLOCATE(Ag(tDof,tnNo), Yg(tDof,tnNo), Dg(tDof,tnNo))
 
 
-      iEqOld = cEq
+      
 !     If cplBC is being used, compute cplBC quantities (pressure, flowrate, resistance)
 !     by communicating with cplBC/genBC
 !     cplBC is invoked only for the first equation
