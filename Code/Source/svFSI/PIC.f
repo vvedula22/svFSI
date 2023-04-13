@@ -285,23 +285,7 @@
       IF (l1 .OR. l2 .OR. ((l3.OR.l4).AND.l5)) eq(cEq)%ok = .TRUE.
       IF (ALL(eq%ok)) RETURN
 
-      IF (eq(cEq)%coupled) THEN
-         cEq = cEq + 1
-         IF (ALL(.NOT.eq%coupled .OR. eq%ok)) THEN
-            DO WHILE (cEq .LE. nEq)
-               IF (.NOT.eq(cEq)%coupled) EXIT
-               cEq = cEq + 1
-            END DO
-         ELSE
-            IF (cEq .GT. nEq) cEq = 1
-            DO WHILE (.NOT.eq(cEq)%coupled)
-               cEq = cEq + 1
-               IF (cEq .GT. nEq) cEq = 1
-            END DO
-         END IF
-      ELSE
-         IF (eq(cEq)%ok) cEq = cEq + 1
-      END IF
+      
 
       RETURN
       END SUBROUTINE PICC

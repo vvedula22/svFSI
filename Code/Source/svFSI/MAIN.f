@@ -41,7 +41,7 @@
       USE ALLFUN
       IMPLICIT NONE
 
-      LOGICAL l1, l2, l3, kflag
+      LOGICAL l1, l2, l3, kflag, lnsrch
       INTEGER(KIND=IKIND) i, iM, iBc, ierr, iEqOld, stopTS
       REAL(KIND=RKIND) timeP(3)
 
@@ -117,24 +117,50 @@
 !     Inner loop for iteration
          DO
             iEqOld = cEq
-            
+
 !           BEGIN CALCKR. Remove eq(cEq)%itr = eq(cEq)%itr + 1 from PICI
             kflag = .TRUE.
             CALL CALCKR(kflag, eq(cEq), incL, res)
-            
-
 !           END CALCKR
+
+!           Solve linear system K*DA = R. The solution is stored in R. 
+!           Note that the correct linear system for Newtons method is
+!           K*DA = -R, so after this function, we treat -R as the Newton increment.
             dbg = "Solving equation <"//eq(cEq)%sym//">"
             CALL LSSOLVE(eq(cEq), incL, res)
 
 !           ADD LINE SEARCH LOOP HERE
+            lnsrch = .TRUE.
+            IF (lnsrch) THEN
+               CALL LINESEARCH
+            ELSE
+!              Solution is obtained, now updating (Corrector)
+!              Note the corrector step inside the NR loop, which is
+!              slightly different from https://www.scorec.rpi.edu/~kjansen/genalf.pdf
+!   
+!              REMOVE convergence checks and equation increment from PICC
+               CALL PICC
+            END IF
 
-!        Solution is obtained, now updating (Corrector)
-!        Note the corrector step inside the NR loop, which is
-!        slightly different from https://www.scorec.rpi.edu/~kjansen/genalf.pdf
-!        
-!           REMOVE convergence checks and equation increment from PICC
-            CALL PICC
+!        Increment equation (taken from PICC, since in LINESEARCH, we may call 
+!        PICC multiple times.)
+         IF (eq(cEq)%coupled) THEN
+            cEq = cEq + 1
+            IF (ALL(.NOT.eq%coupled .OR. eq%ok)) THEN
+               DO WHILE (cEq .LE. nEq)
+                  IF (.NOT.eq(cEq)%coupled) EXIT
+                  cEq = cEq + 1
+               END DO
+            ELSE
+               IF (cEq .GT. nEq) cEq = 1
+               DO WHILE (.NOT.eq(cEq)%coupled)
+                  cEq = cEq + 1
+                  IF (cEq .GT. nEq) cEq = 1
+               END DO
+            END IF
+         ELSE
+            IF (eq(cEq)%ok) cEq = cEq + 1
+         END IF
 
 !        Checking for exceptions
             CALL EXCEPTIONS

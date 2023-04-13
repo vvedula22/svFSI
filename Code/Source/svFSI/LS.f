@@ -277,6 +277,9 @@
             CALL IB_CONSTRUCT()
       END IF
 
+!     These calculations are for the coupled BC contribution to the tangent
+!     matrix.
+      IF (kflag) THEN
       incL = 0
       IF (eq(cEq)%phys .EQ. phys_mesh) incL(nFacesLS) = 1
       IF (cmmInit) incL(nFacesLS) = 1
@@ -292,6 +295,7 @@
             incL(i) = 1
             END IF
       END DO
+      END IF
       END SUBROUTINE CALCKR
 !####################################################################
 
@@ -302,6 +306,7 @@
 !     R(An0 + alpha * DA0). An0 (and Yn0, Dn0) are the dof values in
 !     the current Newton iteration, before updating with line search
 !     Used in LINESEARCH below
+!     Note that CALCG updates the dof values (An,Yn,Dn) by calling PICC
       SUBROUTINE CALCG(An0, Yn0, Dn0, DA0, alpha, g)
       USE COMMOD
       IMPLICIT NONE
@@ -314,6 +319,7 @@
 
       LOGICAL kflag
 
+      PRINT*, "alpha: ", alpha
 !     Compute the partial Newton increment. Store in R, since we'll update
 !     with PICC, which assumes R contains the increment in acceleration
       R = -alpha*DA0
@@ -351,9 +357,10 @@
       IMPLICIT NONE
       
       REAL(KIND=RKIND) alpha, alpha_k, alpha_km1, alpha_kp1
-      REAL(KIND=RKIND) g_0, g_k, g_km1, g_kp1
+      REAL(KIND=RKIND) g_0, g_1, g_k, g_km1, g_kp1
       REAL(KIND=LSRP), ALLOCATABLE :: An0(:,:), Yn0(:,:), Dn0(:,:)
       REAL(KIND=LSRP), ALLOCATABLE :: DA0(:,:)
+      INTEGER(KIND=IKIND) algo, maxit, it
 
 !     Save An, Yn, Dn before line search
       ALLOCATE(An0(dof,tnNo), Yn0(dof,tnNo), Dn0(dof,tnNo))
@@ -366,39 +373,82 @@
       ALLOCATE(DA0(dof,tnNo))
       DA0 = -R
 
-!     Compute g(alpha = 0)
-      alpha_km1 = 0
-      CALL CALCG(An0, Yn0, Dn0, DA0, alpha_km1, g_km1)
-      g_0 = g_km1
+!     Compute scalar function g = DA^T * R at alpha = 0. This sets the value
+!     of g_0 = g(alpha=0). Note, CALCG also updates the dof values by calling
+!     PICC
+      alpha = 0.0
+      CALL CALCG(An0, Yn0, Dn0, DA0, alpha, g_0)
+      PRINT*, "g_0", g_0
+!     Compute scalar gunction g at alpha = 1 (the full Newton step)
+      alpha = 1.0
+      CALL CALCG(An0, Yn0, Dn0, DA0, alpha, g_1)
+      PRINT*, "g_1", g_1
+!     Choose which root-finding algorithm to use.
+      algo = 1
+      
+!     Only search for alpha if g is zero in the interval alpha = [0,1]
+!     i.e. g_0 * g_1 < 0
+      IF (g_0 * g_1 .LT. 0.0) THEN
+         IF (algo .EQ. 1) THEN ! Algorithm 1: Backtracking line search
+            ! Try alpha = 1. If it reduces residual enough, move on. If not,
+            ! try alpha = alpha/2
+            alpha_k = 1
+            g_k = g_1
+            maxit = 10
+            it = 1
+            DO
+                  ! Check if residual is reduced enough. If so, return
+                  IF (ABS(g_k) < 0.8 * ABS(g_0)
+     2                .OR. it .GT. maxit) THEN
+                        RETURN
+                  END IF
 
-!     Compute g(alpha = 1)
-      alpha_k = 0
-      CALL CALCG(An0, Yn0, Dn0, DA0, alpha_k, g_k)
+                  ! If not, reduce alpha_k by half
+                  alpha_k = alpha_k/2
 
-!     If there is a zero in 0 <= alpha <= 1, do secant method. Otherwise, use alpha = 1
-!     Check this by checking g(alpha = 0) * g(alpha = 1) < 0
-      IF (g_km1 * g_k > 0) THEN 
-         alpha = 1._RKIND
-      ELSE
-         DO
-!        Get new alpha from secant method
-!        TODO: Change this to regula falsi method
-         alpha_kp1 = alpha_k - g_k * (alpha_k - alpha_km1) / 
+                  CALL CALCG(An0, Yn0, Dn0, DA0, alpha_k, g_k)
+
+                  PRINT*, "g_k", g_k, 'g_0', g_0
+
+                  it = it + 1
+
+                  
+            END DO
+         ELSE IF (algo .EQ. 2) THEN ! Algorithm 2: Secant method
+
+!           Compute g(alpha = 0)
+            alpha_km1 = 0
+            g_km1 = 0
+
+!           Compute g(alpha = 1)
+            alpha_k = 0
+            CALL CALCG(An0, Yn0, Dn0, DA0, alpha_k, g_k)
+
+!           If there is a zero in 0 <= alpha <= 1, do secant method. Otherwise, use alpha = 1
+!           Check this by checking g(alpha = 0) * g(alpha = 1) < 0
+            IF (g_km1 * g_k > 0) THEN 
+            alpha = 1._RKIND
+            ELSE
+            DO
+!           Get new alpha from secant method
+!           TODO: Change this to regula falsi method
+            alpha_kp1 = alpha_k - g_k * (alpha_k - alpha_km1) / 
      2     (g_k - g_km1)
 
-!        Compute g(alpha_k+1)
-         CALL CALCG(An0, Yn0, Dn0, DA0, alpha_kp1, g_kp1)
+!           Compute g(alpha_k+1)
+            CALL CALCG(An0, Yn0, Dn0, DA0, alpha_kp1, g_kp1)
 
-!        Check if |g(alpha_k+1)| < 0.8 |g(alpha_0)|
-         IF (ABS(g_kp1) < 0.8 * ABS(g_0)) THEN
-            alpha = alpha_kp1
-            RETURN
+!           Check if |g(alpha_k+1)| < 0.8 |g(alpha_0)|
+            IF (ABS(g_kp1) < 0.8 * ABS(g_0)) THEN
+                  alpha = alpha_kp1
+                  RETURN
+            END IF
+            END DO
+            END IF
+
          END IF
-         END DO
       END IF
 
-!     Multiply Newton increment with damping parameter alpha
-      R = R * alpha
 
       END SUBROUTINE LINESEARCH
 
