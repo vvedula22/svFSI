@@ -114,7 +114,7 @@
 !     Apply Dirichlet BCs strongly
          CALL SETBCDIR(An, Yn, Dn)
 
-!     Inner loop for iteration
+!     Inner loop for Newton iteration (with line search)
          DO
             iEqOld = cEq
 

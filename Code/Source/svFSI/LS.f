@@ -319,7 +319,6 @@
 
       LOGICAL kflag
 
-      PRINT*, "alpha: ", alpha
 !     Compute the partial Newton increment. Store in R, since we'll update
 !     with PICC, which assumes R contains the increment in acceleration
       R = -alpha*DA0
@@ -356,8 +355,8 @@
       USE COMMOD
       IMPLICIT NONE
       
-      REAL(KIND=RKIND) alpha, alpha_k, alpha_km1, alpha_kp1
-      REAL(KIND=RKIND) g_0, g_1, g_k, g_km1, g_kp1
+      REAL(KIND=RKIND) alpha, alpha_k, a, b, c
+      REAL(KIND=RKIND) g_0, g_1, g_k, g_a, g_b, g_c
       REAL(KIND=LSRP), ALLOCATABLE :: An0(:,:), Yn0(:,:), Dn0(:,:)
       REAL(KIND=LSRP), ALLOCATABLE :: DA0(:,:)
       INTEGER(KIND=IKIND) algo, maxit, it
@@ -378,13 +377,16 @@
 !     PICC
       alpha = 0.0
       CALL CALCG(An0, Yn0, Dn0, DA0, alpha, g_0)
-      PRINT*, "g_0", g_0
+      IF (cm%mas()) THEN PRINT*, "alpha_0", alpha_0, "g_0", g_0
 !     Compute scalar gunction g at alpha = 1 (the full Newton step)
+!     Note that CALCG calls PICC, so after this call, the global state variables
+!     An, Yn, Dn are set to values after a full Newton step. 
       alpha = 1.0
       CALL CALCG(An0, Yn0, Dn0, DA0, alpha, g_1)
-      PRINT*, "g_1", g_1
+      IF (cm%mas()) THEN PRINT*, "alpha_1", alpha_1, "g_1", g_1
+
 !     Choose which root-finding algorithm to use.
-      algo = 1
+      algo = 2
       
 !     Only search for alpha if g is zero in the interval alpha = [0,1]
 !     i.e. g_0 * g_1 < 0
@@ -414,38 +416,45 @@
 
                   
             END DO
-         ELSE IF (algo .EQ. 2) THEN ! Algorithm 2: Secant method
+         ELSE IF (algo .EQ. 2) THEN ! Algorithm 2: Regula falsi
 
 !           Compute g(alpha = 0)
-            alpha_km1 = 0
-            g_km1 = 0
+            a = 0
+            g_a = g_0
 
 !           Compute g(alpha = 1)
-            alpha_k = 0
-            CALL CALCG(An0, Yn0, Dn0, DA0, alpha_k, g_k)
+            b = 1
+            g_b = g_1
 
-!           If there is a zero in 0 <= alpha <= 1, do secant method. Otherwise, use alpha = 1
-!           Check this by checking g(alpha = 0) * g(alpha = 1) < 0
-            IF (g_km1 * g_k > 0) THEN 
-            alpha = 1._RKIND
-            ELSE
+!           Initialize c and g_c
+            c = 1
+            g_c = g_b
+
             DO
-!           Get new alpha from secant method
-!           TODO: Change this to regula falsi method
-            alpha_kp1 = alpha_k - g_k * (alpha_k - alpha_km1) / 
-     2     (g_k - g_km1)
+!              Check if residual is reduced enough. If so, return
+               IF (ABS(g_c) < 0.8 * ABS(g_0)
+     2             .OR. it .GT. maxit) THEN
+                        RETURN
+               END IF
 
-!           Compute g(alpha_k+1)
-            CALL CALCG(An0, Yn0, Dn0, DA0, alpha_kp1, g_kp1)
+!              Get new alpha from regula falsi method
+               c = (a*g_b - b*g_a)/(g_b - g_a)
 
-!           Check if |g(alpha_k+1)| < 0.8 |g(alpha_0)|
-            IF (ABS(g_kp1) < 0.8 * ABS(g_0)) THEN
-                  alpha = alpha_kp1
-                  RETURN
-            END IF
+!              Compute g(c)
+               CALL CALCG(An0, Yn0, Dn0, DA0, c, g_c)
+
+               IF (cm%mas()) THEN PRINT*, "a", a, "g_a", g_a
+               IF (cm%mas()) THEN PRINT*, "b", b, "g_b", g_b
+               IF (cm%mas()) THEN PRINT*, "c", c, "g_c", g_c
+!              Update a or b depending on g_c
+               IF (g_a*g_c .GT. 0.0) THEN 
+                  a = c
+                  g_a = g_c
+               ELSE
+                  b = c
+                  g_b = g_c
+               END IF
             END DO
-            END IF
-
          END IF
       END IF
 
