@@ -377,13 +377,13 @@
 !     PICC
       alpha = 0.0
       CALL CALCG(An0, Yn0, Dn0, DA0, alpha, g_0)
-      IF (cm%mas()) THEN PRINT*, "alpha_0", alpha_0, "g_0", g_0
+      IF (cm%mas()) PRINT*, "alpha_0", alpha, "g_0", g_0
 !     Compute scalar gunction g at alpha = 1 (the full Newton step)
 !     Note that CALCG calls PICC, so after this call, the global state variables
 !     An, Yn, Dn are set to values after a full Newton step. 
       alpha = 1.0
       CALL CALCG(An0, Yn0, Dn0, DA0, alpha, g_1)
-      IF (cm%mas()) THEN PRINT*, "alpha_1", alpha_1, "g_1", g_1
+      IF (cm%mas()) PRINT*, "alpha_1", alpha, "g_1", g_1
 
 !     Choose which root-finding algorithm to use.
       algo = 2
@@ -400,7 +400,7 @@
             it = 1
             DO
                   ! Check if residual is reduced enough. If so, return
-                  IF (ABS(g_k) < 0.8 * ABS(g_0)
+                  IF (ABS(g_k) < 0.5 * ABS(g_0)
      2                .OR. it .GT. maxit) THEN
                         RETURN
                   END IF
@@ -416,7 +416,7 @@
 
                   
             END DO
-         ELSE IF (algo .EQ. 2) THEN ! Algorithm 2: Regula falsi
+         ELSE IF (algo .EQ. 2) THEN ! Algorithm 2: Regula falsi (https://en.wikipedia.org/wiki/Regula_falsi)
 
 !           Compute g(alpha = 0)
             a = 0
@@ -430,9 +430,12 @@
             c = 1
             g_c = g_b
 
+!           Iteration counter and max iteration
+            maxit = 10
+            it = 1
             DO
 !              Check if residual is reduced enough. If so, return
-               IF (ABS(g_c) < 0.8 * ABS(g_0)
+               IF (ABS(g_c) < 0.5 * ABS(g_0)
      2             .OR. it .GT. maxit) THEN
                         RETURN
                END IF
@@ -443,9 +446,9 @@
 !              Compute g(c)
                CALL CALCG(An0, Yn0, Dn0, DA0, c, g_c)
 
-               IF (cm%mas()) THEN PRINT*, "a", a, "g_a", g_a
-               IF (cm%mas()) THEN PRINT*, "b", b, "g_b", g_b
-               IF (cm%mas()) THEN PRINT*, "c", c, "g_c", g_c
+               IF (cm%mas()) PRINT*, "a", a, "g_a", g_a
+               IF (cm%mas()) PRINT*, "b", b, "g_b", g_b
+               IF (cm%mas()) PRINT*, "c", c, "g_c", g_c
 !              Update a or b depending on g_c
                IF (g_a*g_c .GT. 0.0) THEN 
                   a = c
@@ -454,6 +457,8 @@
                   b = c
                   g_b = g_c
                END IF
+
+               it = it + 1
             END DO
          END IF
       END IF

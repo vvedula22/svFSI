@@ -143,8 +143,7 @@
       INTEGER(KIND=IKIND) s, e, i, a
       REAL(KIND=RKIND) coef(4)
 
-      dof         = eq(cEq)%dof
-      eq(cEq)%itr = eq(cEq)%itr + 1
+      dof         = eq(cEq)%dof ! UNUSED?
 
       DO i=1, nEq
          s       = eq(i)%s

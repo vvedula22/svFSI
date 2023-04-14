@@ -118,7 +118,11 @@
          DO
             iEqOld = cEq
 
-!           BEGIN CALCKR. Remove eq(cEq)%itr = eq(cEq)%itr + 1 from PICI
+!           Increment Newton iteration counter
+            eq(cEq)%itr = eq(cEq)%itr + 1
+
+
+!           BEGIN CALCKR.
             kflag = .TRUE.
             CALL CALCKR(kflag, eq(cEq), incL, res)
 !           END CALCKR
