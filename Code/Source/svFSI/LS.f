@@ -185,7 +185,9 @@
 !
 !     kflag: a flag saying whether to compute and assemble the tangent matrix
 !     During line search loop, don't need to compute and assemble tangent
-!
+!     lEq: Equation pointer. Not necessary?
+!     incL: Helper array for coupled BC tangent computation
+!     res: Array containing resistance values for coupled BC tangent computation
 !     TODO: Wrap tangent calculation in kflag IF statements
       SUBROUTINE CALCKR(kflag, lEq, incL, res)
       USE COMMOD
@@ -370,7 +372,7 @@
 !     Save full Newton increment DA0. After the linear solve this value
 !     is stored in -R
       ALLOCATE(DA0(dof,tnNo))
-      DA0 = -R
+      DA0 = -R ! Deep copy in Fortran 90
 
 !     Compute scalar function g = DA^T * R at alpha = 0. This sets the value
 !     of g_0 = g(alpha=0). Note, CALCG also updates the dof values by calling
@@ -378,7 +380,7 @@
       alpha = 0.0
       CALL CALCG(An0, Yn0, Dn0, DA0, alpha, g_0)
       IF (cm%mas()) PRINT*, "alpha_0", alpha, "g_0", g_0
-!     Compute scalar gunction g at alpha = 1 (the full Newton step)
+!     Compute scalar function g at alpha = 1 (the full Newton step)
 !     Note that CALCG calls PICC, so after this call, the global state variables
 !     An, Yn, Dn are set to values after a full Newton step. 
       alpha = 1.0
@@ -386,7 +388,7 @@
       IF (cm%mas()) PRINT*, "alpha_1", alpha, "g_1", g_1
 
 !     Choose which root-finding algorithm to use.
-      algo = 2
+      algo = 3
       
 !     Only search for alpha if g is zero in the interval alpha = [0,1]
 !     i.e. g_0 * g_1 < 0
@@ -407,25 +409,18 @@
 
                   ! If not, reduce alpha_k by half
                   alpha_k = alpha_k/2
-
                   CALL CALCG(An0, Yn0, Dn0, DA0, alpha_k, g_k)
-
                   PRINT*, "g_k", g_k, 'g_0', g_0
 
-                  it = it + 1
-
-                  
+                  it = it + 1   
             END DO
          ELSE IF (algo .EQ. 2) THEN ! Algorithm 2: Regula falsi (https://en.wikipedia.org/wiki/Regula_falsi)
-
 !           Compute g(alpha = 0)
             a = 0
             g_a = g_0
-
 !           Compute g(alpha = 1)
             b = 1
             g_b = g_1
-
 !           Initialize c and g_c
             c = 1
             g_c = g_b
@@ -439,16 +434,55 @@
      2             .OR. it .GT. maxit) THEN
                         RETURN
                END IF
-
 !              Get new alpha from regula falsi method
                c = (a*g_b - b*g_a)/(g_b - g_a)
-
 !              Compute g(c)
                CALL CALCG(An0, Yn0, Dn0, DA0, c, g_c)
 
                IF (cm%mas()) PRINT*, "a", a, "g_a", g_a
                IF (cm%mas()) PRINT*, "b", b, "g_b", g_b
                IF (cm%mas()) PRINT*, "c", c, "g_c", g_c
+
+!              Update a or b depending on g_c
+               IF (g_a*g_c .GT. 0.0) THEN 
+                  a = c
+                  g_a = g_c
+               ELSE
+                  b = c
+                  g_b = g_c
+               END IF
+
+               it = it + 1
+            END DO
+         ELSE IF (algo .EQ. 3) THEN ! Algorithm 3: Bisection method (https://en.wikipedia.org/wiki/Bisection_method)
+!           Compute g(alpha = 0)
+            a = 0
+            g_a = g_0
+!           Compute g(alpha = 1)
+            b = 1
+            g_b = g_1
+!           Initialize c and g_c
+            c = 1
+            g_c = g_b
+
+!           Iteration counter and max iteration
+            maxit = 10
+            it = 1
+            DO
+!              Check if residual is reduced enough. If so, return
+               IF (ABS(g_c) < 0.5 * ABS(g_0)
+     2             .OR. it .GT. maxit) THEN
+                        RETURN
+               END IF
+!              Get new alpha from bisection method
+               c = (a + b)/2
+!              Compute g(c)
+               CALL CALCG(An0, Yn0, Dn0, DA0, c, g_c)
+
+               IF (cm%mas()) PRINT*, "a", a, "g_a", g_a
+               IF (cm%mas()) PRINT*, "b", b, "g_b", g_b
+               IF (cm%mas()) PRINT*, "c", c, "g_c", g_c
+
 !              Update a or b depending on g_c
                IF (g_a*g_c .GT. 0.0) THEN 
                   a = c
