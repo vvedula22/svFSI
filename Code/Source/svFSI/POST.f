@@ -1217,7 +1217,6 @@
                ELSE IF (outGrp .EQ. outGrp_I1) THEN
                   resl(1) = MAT_TRACE(C, 3)
                   sE(e)   = sE(e) + w*resl(1)
-
                END IF
 
             CASE (outGrp_stress)

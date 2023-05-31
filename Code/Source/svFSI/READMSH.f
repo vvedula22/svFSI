@@ -70,6 +70,7 @@
             lPM => list%get(msh(iM)%name,"Add mesh",iM)
             lPtr => lPM%get(msh(iM)%lShl,"Set mesh as shell")
             lPtr => lPM%get(msh(iM)%lFib,"Set mesh as fibers")
+            lPtr => lPM%get(msh(iM)%lSFp,"Surface direction flip")
 
             std  = " Reading mesh <"//CLR(TRIM(msh(iM)%name))//">"
             CALL READSV(lPM, msh(iM))
@@ -497,6 +498,7 @@
          lPM => list%get(ctmp, "Contact model")
          IF (ASSOCIATED(lPM)) THEN
             iCntct = .TRUE.
+            lPtr => lPM%get(cntctM%lSSC, "Allow self contact")
             SELECT CASE (TRIM(ctmp))
             CASE ("penalty")
                cntctM%cType = cntctM_penalty
@@ -516,17 +518,21 @@
                lPtr => lPM%get(cntctM%k,
      2            "k", 1, ll=0._RKIND)
                lPtr => lPM%get(cntctM%p,
-     2            "p", 1, lb=4._RKIND)
+     2            "p", 1, ll=4._RKIND)
                lPtr => lPM%get(cntctM%Rin,
      2            "Rin", 1, lb=0._RKIND)
                lPtr => lPM%get(cntctM%Rout,
      2            "Rout", 1, lb=0._RKIND)
                IF (cntctM%Rout .LT. cntctM%Rin) err =
      2            "Choose Rout > Rin for proper contact penalization"
-               lPtr => lPM%get(cntctM%gap,
-     2            "gap", 1, lb=0._RKIND)
-               lPtr => lPM%get(cntctM%c,
-     2            "c", 1, lb=0._RKIND)
+            CASE ("elastic_slide")
+               cntctM%cType = cntctM_slide
+               lPtr => lPM%get(cntctM%k,
+     2            "k", 1, ll=0._RKIND)
+               lPtr => lPM%get(cntctM%Rout,
+     2            "Rout", 1, lb=0._RKIND)
+               IF (cntctM%Rout .LT. cntctM%Rin) err =
+     2            "Choose Rout > Rin for proper contact penalization"
             CASE DEFAULT
                err = "Undefined contact model"
             END SELECT

@@ -227,6 +227,42 @@
       RETURN
       END FUNCTION NORMV
 !####################################################################
+!     This routine does the dot product for a two given vector of
+!     V1 and V2.
+      PURE FUNCTION VEC_DOT(V1, V2) RESULT(U)
+      IMPLICIT NONE
+      REAL(KIND=RKIND), INTENT(IN) :: V1(:), V2(:)
+      REAL(KIND=RKIND) U
+
+      INTEGER(KIND=IKIND) :: i
+
+      U = 0
+      DO i = 1, SIZE(V1)
+         U = U + V1(i) * V2(i)
+      END DO
+
+      RETURN
+      END FUNCTION VEC_DOT
+!####################################################################
+!     This routine does the cross product for a two given vector of
+!     V1 and V2.
+      PURE FUNCTION CROSS2(V1, V2) RESULT(U)
+      IMPLICIT NONE
+      REAL(KIND=RKIND), INTENT(IN) :: V1(:), V2(:)
+      REAL(KIND=RKIND) U(SIZE(V1))
+
+      IF (SIZE(V1) .EQ. 2) THEN
+         U(1) =  V1(1) * V2(2)
+         U(2) = -V1(2) * V2(1)
+      ELSE
+         U(1) = V1(2)*V2(3) - V1(3)*V2(2)
+         U(2) = V1(3)*V2(1) - V1(1)*V2(3)
+         U(3) = V1(1)*V2(2) - V1(2)*V2(1)
+      END IF
+
+      RETURN
+      END FUNCTION CROSS2
+!####################################################################
 !     This routine does the cross product for a two given vector of
 !     V1 and V2.
       PURE FUNCTION CROSS(V) RESULT(U)

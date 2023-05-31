@@ -469,6 +469,8 @@
       TYPE cntctModelType
 !        Contact model
          INTEGER(KIND=IKIND) :: cType = cntctM_NA
+!        Allow self contact
+         LOGICAL :: lSSC = .FALSE.
 !        Penalty parameter
          REAL(KIND=RKIND) k
 !        Min depth of penetration
@@ -483,8 +485,6 @@
          REAL(KIND=RKIND) Rin
 !        Rout
          REAL(KIND=RKIND) Rout
-!        Gap
-         REAL(KIND=RKIND) gap
 !        Tolerance
          REAL(KIND=RKIND) :: tol = 1.E-6_RKIND
       END TYPE cntctModelType
@@ -555,6 +555,8 @@
          LOGICAL lShpF
 !        Whether the mesh is shell
          LOGICAL :: lShl = .FALSE.
+!        Surface mesh direction flip
+         LOGICAL :: lSFp = .FALSE.
 !        Whether the mesh is fibers (Purkinje)
          LOGICAL :: lFib = .FALSE.
 !        Element type

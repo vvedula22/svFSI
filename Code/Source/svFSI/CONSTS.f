@@ -224,7 +224,8 @@
 !--------------------------------------------------------------------
 !     Contact model
       INTEGER(KIND=IKIND), PARAMETER :: cntctM_NA = 800,
-     2   cntctM_penalty = 801, cntctM_potential = 802
+     2   cntctM_penalty = 801, cntctM_potential = 802, 
+     3   cntctM_slide = 803 
 !--------------------------------------------------------------------
 !     IB method: traditional immersed finite element (IFEM)
       INTEGER(KIND=IKIND), PARAMETER :: ibMthd_NA = 850,

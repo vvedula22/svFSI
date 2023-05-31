@@ -881,18 +881,18 @@
                nI(3) = eI(1)*nV0(2) - eI(2)*nV0(1)
                nInI  = MAT_DYADPROD(nI, nI, 3)
             ELSE
-!              eI = aI/|aI| (current config)
-               aIi   = 1._RKIND/SQRT(NORM(a(:,i)))
-               eI(:) = a(:,i)*aIi
-!              nI = eI x n (currnt config)
-               nI(1) = eI(2)*nV(3) - eI(3)*nV(2)
-               nI(2) = eI(3)*nV(1) - eI(1)*nV(3)
-               nI(3) = eI(1)*nV(2) - eI(2)*nV(1)
-               cI    = NORM(a(:,i),a(:,p))*aIi*aIi
-               nInI  = MAT_DYADPROD(nI, nI, 3)
-               eIeI  = MAT_DYADPROD(eI, eI, 3)
-               eIaP  = MAT_DYADPROD(eI, a(:,p), 3)
-            END IF
+       !           eI = aI/|aI| (current config)
+              aIi   = 1._RKIND/SQRT(NORM(a(:,i)))
+              eI(:) = a(:,i)*aIi
+       !           nI = eI x n (currnt config)
+              nI(1) = eI(2)*nV(3) - eI(3)*nV(2)
+              nI(2) = eI(3)*nV(1) - eI(1)*nV(3)
+              nI(3) = eI(1)*nV(2) - eI(2)*nV(1)
+              cI    = NORM(a(:,i),a(:,p))*aIi*aIi
+              nInI  = MAT_DYADPROD(nI, nI, 3)
+              eIeI  = MAT_DYADPROD(eI, eI, 3)
+              eIaP  = MAT_DYADPROD(eI, a(:,p), 3)
+            END IF  
 
 !           Update Bb now
 !           Free boundary conditions: assumed that the `artificial'
@@ -917,7 +917,7 @@
                END IF
                Bb(:,:,j) = 0._RKIND
 
-!           Hinged boundary conditions: a special case of simple support
+            !           Hinged boundary conditions: a special case of simple support
 !           in which no translation displacements are allowed.
             ELSE IF (BTEST(lM%sbc(i,e),bType_hing)) THEN
 !              E_I
@@ -1466,4 +1466,3 @@ c=====================================================================
       RETURN
       END SUBROUTINE SHELLBF
 !####################################################################
-
