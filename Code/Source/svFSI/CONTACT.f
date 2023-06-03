@@ -238,7 +238,7 @@
          DO b = 1, maxNnb
             IF (lRBI(b,Ac).EQ.0) CYCLE
             lR(1:nsd,lRBI(b,Ac)) = lR(1:nsd,lRBI(b,Ac)) + 
-     2          lRBc(1:nsd,b,Ac) / REAL(nNb, KIND=RKIND) / 2._RKIND
+     2          lRBc(1:nsd,b,Ac) / 2._RKIND
          END DO
       END DO
       DEALLOCATE(sA, sF, bBox)

@@ -67,6 +67,9 @@
 !     Onset of diastole (ms)
       REAL(KIND=RKIND) :: t_dia = 484._RKIND
 
+!     Time of cycle (ms)
+      REAL(KIND=RKIND) :: t_cyc = 1000._RKIND  
+
 !     Gamma (ms)
       REAL(KIND=RKIND) :: gamma = 5._RKIND
 !--------------------------------------------------------------------
