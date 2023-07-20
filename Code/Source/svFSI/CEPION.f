@@ -237,7 +237,7 @@
                dID   = eq(iEq)%dmn(iDmn)%Id
 
                flag = (cPhys .NE. phys_CEP)
-     2           .OR. (.NOT.BTEST(dmnId(Ac),dID))
+     2           .OR. (.NOT.BTEST(dmnId(Ac),dID)) 
                IF (flag) CYCLE
 
                nX = eq(iEq)%dmn(iDmn)%cep%nX
@@ -253,7 +253,7 @@
                IF (ecCpld) yl = ec_Ya(Ac)
 
                CALL CEPINTEGL(time-dt, nX, nG, eq(iEq)%dmn(iDmn)%cep,
-     2            eq(iEq)%dmn(iDmn)%ec, I4f(Ac), Xl, Xgl, yl)
+     2            eq(iEq)%dmn(iDmn)%ec, I4f(Ac), Xl, Xgl, yl, Ac)
 
                sA(Ac) = sA(Ac) + 1._RKIND
                sF(1:nX,Ac) = sF(1:nX,Ac) + Xl(:)
@@ -293,7 +293,7 @@
             IF (ecCpld) yl = ec_Ya(Ac)
 
             CALL CEPINTEGL(time-dt, nX, nG, eq(iEq)%dmn(1)%cep,
-     2         eq(iEq)%dmn(1)%ec, I4f(Ac), Xl, Xgl, yl)
+     2         eq(iEq)%dmn(1)%ec, I4f(Ac), Xl, Xgl, yl, Ac)
 
             Xion(1:nX,Ac) = Xl(:)
             Xion(nX+1:nX+nG,Ac) = Xgl(:)
@@ -316,19 +316,19 @@
 !     Integrate local electrophysiology state variables from t1 to t1+dt
 !     Also integrate excitation-contraction variables for electro-
 !     mechanics modeling. The equations are integrated at domain nodes.
-      SUBROUTINE CEPINTEGL(t1, nX, nG, cep, ec, I4f, X, Xg, yl)
+      SUBROUTINE CEPINTEGL(t1, nX, nG, cep, ec, I4f, X, Xg, yl, Ac)
       USE CEPMOD
       USE UTILMOD, ONLY : eps
       USE COMMOD, ONLY : dt, err, eccModelType
       IMPLICIT NONE
       REAL(KIND=RKIND), INTENT(IN) :: t1, I4f
-      INTEGER(KIND=IKIND), INTENT(IN) :: nX, nG
+      INTEGER(KIND=IKIND), INTENT(IN) :: nX, nG, Ac
       TYPE(cepModelType), INTENT(IN) :: cep
       TYPE(eccModelType), INTENT(IN) :: ec
       REAL(KIND=RKIND), INTENT(INOUT) :: X(nX), Xg(nG), yl
 
       INTEGER(KIND=IKIND) i, icl, nt
-      REAL(KIND=RKIND) :: t, Ts, Te, Istim, Ksac, X0
+      REAL(KIND=RKIND) :: t, Ts, Te, Istim, Ksac, X0 
 
       INTEGER(KIND=IKIND), ALLOCATABLE :: IPAR(:)
       REAL(KIND=RKIND), ALLOCATABLE :: RPAR(:)
@@ -372,7 +372,7 @@
 
 !              Excitation-contraction coupling due to active stress
                IF (ec%astress) THEN
-                  CALL AP_ACTVSTRS_FE(X0, cep%dt, yl)
+                  CALL AP_ACTVSTRS_FE(X0, dt, yl)
                END IF
             END DO
 
@@ -390,7 +390,7 @@
 
 !              Excitation-contraction coupling due to active stress
                IF (ec%astress) THEN
-                  CALL AP_ACTVSTRS_RK(X0, cep%dt, yl)
+                  CALL AP_ACTVSTRS_RK(X0, dt, yl)
                END IF
             END DO
 
@@ -408,7 +408,7 @@
 
 !              Excitation-contraction coupling due to active stress
                IF (ec%astress) THEN
-                  CALL AP_ACTVSTRS_BE(X(1), cep%dt, yl)
+                  CALL AP_ACTVSTRS_BE(X(1), dt, yl)
                END IF
             END DO
          END SELECT

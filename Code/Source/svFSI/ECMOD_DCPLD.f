@@ -84,7 +84,6 @@
       CALL GETRVAL(fid, "max_alpha", max_alpha)
       CALL GETRVAL(fid, "t_sys", t_sys)
       CALL GETRVAL(fid, "t_dia", t_dia)
-      CALL GETRVAL(fid, "t_cyc", t_cyc) 
       CALL GETRVAL(fid, "gamma", gamma)
 
 !     Excitaton-contraction coupling: active strain
@@ -152,13 +151,12 @@
       REAL(KIND=RKIND), INTENT(IN) :: t, dt
       REAL(KIND=RKIND), INTENT(INOUT) :: Ta
 
-      REAL(KIND=RKIND) :: sp, sm, ft, a, ap, t_sysn, t_dian
+      REAL(KIND=RKIND) :: t1, sp, sm, ft, a, ap
 
-      t_sysn = t_sys + FLOOR(t / t_cyc) 
-      t_dian = t_dia + FLOOR(t / t_cyc) 
-      
-      sp = 0.5_RKIND*(1._RKIND + TANH((t-t_sysn)/gamma))
-      sm = 0.5_RKIND*(1._RKIND - TANH((t-t_dian)/gamma))
+      t1 = MOD(t, t_CL)
+
+      sp = 0.5_RKIND*(1._RKIND + TANH((t1-t_sys)/gamma))
+      sm = 0.5_RKIND*(1._RKIND - TANH((t1-t_dia)/gamma))
       ft = sp * sm
 
       a  = max_alpha*ft + min_alpha*(1._RKIND - ft)

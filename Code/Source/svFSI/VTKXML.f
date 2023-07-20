@@ -529,6 +529,7 @@
 
                oGrp = eq(iEq)%output(iOut)%grp
                outNames(cOut) = TRIM(eq(iEq)%output(iOut)%name)
+               ! PRINT *, outNames(cOut)
 
                SELECT CASE (oGrp)
                CASE (outGrp_NA)
@@ -546,6 +547,7 @@
                      Ac = msh(iM)%gN(a)
                      ! Why don't we divide by mesh scale factor
                      d(iM)%x(is:ie,a) = lY(s:e,Ac)
+                     ! IF (Ac==1) PRINT *, Ac, tDof, lY(1:4,Ac)
                   END DO
 
                CASE (outGrp_D)
@@ -554,6 +556,21 @@
                      ! Divide by mesh scale factor
                      d(iM)%x(is:ie,a) = lD(s:e,Ac)/msh(iM)%scF
                   END DO
+
+               CASE (outGrp_actst)
+                  IF (ALLOCATED(ec_Ya)) THEN
+                     DO a=1, msh(iM)%nNo
+                        Ac = msh(iM)%gN(a)
+                        ! Why don't we divide by mesh scale factor
+                        d(iM)%x(is:ie,a) = ec_Ya(Ac)
+                     END DO
+                  ELSE
+                     DO a=1, msh(iM)%nNo
+                        Ac = msh(iM)%gN(a)
+                        ! Why don't we divide by mesh scale factor
+                        d(iM)%x(is:ie,a) = 0._RKIND
+                     END DO
+                  END IF
 
                CASE (outGrp_WSS, outGrp_trac)
                   CALL BPOST(msh(iM), tmpV, lY, lD, oGrp)

@@ -727,7 +727,7 @@
       masN = lBc%masN
       IF (lFa%nNo.EQ.0 .OR. masN.EQ.0) RETURN
 
-!     For lElas, struct: dof = 3; for ustruct: dof = 4
+!     For lElas, struct, shell: dof = 3; for ustruct: dof = 4
       IF ((eq(cEq)%phys .EQ. phys_lElas) .OR.
      2    (eq(cEq)%phys .EQ. phys_shell) .OR.
      3    (eq(cEq)%phys .EQ. phys_struct)) THEN

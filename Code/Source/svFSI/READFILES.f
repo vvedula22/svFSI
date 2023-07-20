@@ -863,8 +863,9 @@
 
          CALL READDOMAIN(lEq, propL, list)
 
-         nDOP = (/1,1,0,0/)
+         nDOP = (/2,1,0,0/)
          outPuts(1) = out_voltage
+         outPuts(2) = out_actstrs
 
          CALL READLS(lSolver_CG, lEq, list)
 
@@ -1380,6 +1381,11 @@
             lEq%output(iOut)%o    = 0
             lEq%output(iOut)%l    = 1
             lEq%output(iOut)%name = "Action_potential"
+         CASE (out_actstrs)
+            lEq%output(iOut)%grp  = outGrp_actst
+            lEq%output(iOut)%o    = 0
+            lEq%output(iOut)%l    = 1
+            lEq%output(iOut)%name = "Active_stress"
          CASE (out_acceleration)
             lEq%output(iOut)%grp  = outGrp_A
             lEq%output(iOut)%o    = 0

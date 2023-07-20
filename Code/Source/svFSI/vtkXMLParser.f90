@@ -1280,10 +1280,11 @@
             istat=-1; return
          end if
 
-         if ( nPolys.lt.1 ) then
-            write(stdout,ftab4) &
+         if (nPolys < 1 .and. nLines < 1) then
+            write(stdout,ftab4) & 
             "ERROR: VTK Piece element NumberOfPolys not defined.."
-            istat=-1; return
+            istat = -1
+            return
          end if
 
          dPtr%isInt = .false.
@@ -1308,9 +1309,17 @@
             if ( nPolys.gt.0 .and. dPtr%nComps.eq.0 ) then
                dPtr%nComps = getNumComps(vtk,dataArr,nPolys)
                if ( .not.vtk%isBinApp ) dPtr%nComps = 1
+            elseif ( nLines.gt.0 .and. dPtr%nComps.eq.0 ) then
+               dPtr%nComps = getNumComps(vtk,dataArr,nLines)
+               if ( .not.vtk%isBinApp ) dPtr%nComps = 1
             end if
-            dPtr%nVals = nPolys
-            dPtr%nElms = nPolys * dPtr%nComps
+            if (nPolys.gt.0) then
+               dPtr%nVals = nPolys
+               dPtr%nElms = nPolys * dPtr%nComps
+            elseif (nLines.gt.0) then
+               dPtr%nVals = nLines
+               dPtr%nElms = nLines * dPtr%nComps
+            end if 
             if ( debug ) then
                write(stdout,ftab4) &
                   "nPolys "// trim(STR(dPtr%nVals)) //&
@@ -2023,6 +2032,8 @@
             ne = vtk%pcElms%nCells
          else if ( vtk%pcElms%nPolys.gt.0 ) then
             ne = vtk%pcElms%nPolys
+         else if ( vtk%pcElms%nLines.gt.0 ) then
+            ne = vtk%pcElms%nLines
          end if
 
          if ( ne.eq.0 ) then
@@ -2144,6 +2155,8 @@
             iatt = 9
          else if (vtk%pcElms%nPolys.gt.0 ) then ! nPolys !
             iatt = 8
+         else if (vtk%pcElms%nLines.gt.0 ) then ! nLines !
+            iatt = 6
          else
             write(stdout,ftab4) &
                "ERROR: could not find CELLS or POLYS attributes"
