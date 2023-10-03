@@ -106,7 +106,8 @@
             IF (resetSim) EXIT
          END IF
 
-!     Predictor step
+!     Predictor step. Predicts new (timestep n+1) quantities (An, Yn, Dn) from 
+!     old (timestep n) quantities (Ao, Yo, Do) according to gen-alpha relations
          CALL PICP
 
 !     Apply Dirichlet BCs strongly
@@ -115,9 +116,9 @@
 !     Inner loop for iteration
          DO
             iEqOld = cEq
-
-!           cplBC is invoked only for the first equation
             IF (cplBC%coupled .AND. cEq.EQ.1) THEN
+!              Compute cplBC quantities (pressure, flowrate, resistance) by 
+!              communicating with cplBC/genBC
                CALL SETBCCPL
                CALL SETBCDIR(An, Yn, Dn)
             END IF
@@ -189,7 +190,9 @@
             DO iBc=1, eq(cEq)%nBc
                i = eq(cEq)%bc(iBc)%lsPtr
                IF (i .NE. 0) THEN
+!                 Resistance term for coupled Neumann surface tangent contribution
                   res(i) = eq(cEq)%gam*dt*eq(cEq)%bc(iBc)%r
+
                   incL(i) = 1
                END IF
             END DO
@@ -197,7 +200,7 @@
             dbg = "Solving equation <"//eq(cEq)%sym//">"
             CALL LSSOLVE(eq(cEq), incL, res)
 
-!        Solution is obtained, now updating (Corrector)
+!        Solution is obtained, now updating (Corrector). Also, check convergence
             CALL PICC
 
 !        Checking for exceptions

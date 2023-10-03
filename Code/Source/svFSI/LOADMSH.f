@@ -78,6 +78,13 @@
                   END DO
                END DO
             END IF
+
+!           Read virtual face flag. A face is virtual if it does not lie on the
+!           computational mesh (e.g. a capping surface for an LV)
+            lM%fa(iFa)%virtual = .FALSE.
+            lPtr => lPBC%get(lM%fa(iFa)%virtual,"Virtual")
+
+
          ELSE
             lPtr => lPBC%get(ftmp,"End nodes face file path")
             IF (.NOT.ASSOCIATED(lPtr)) err =

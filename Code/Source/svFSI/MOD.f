@@ -184,6 +184,10 @@
          TYPE(fcType), ALLOCATABLE :: gt
 !        Neu: RCR
          TYPE(rcrType) :: RCR
+!        Name of face that caps this surface
+         CHARACTER(LEN=stdL) :: capFaceName = ""
+!        Index of cap BC associated with this BC
+         INTEGER(KIND=IKIND) :: iCapBC = 0
       END TYPE bcType
 
 !     Body force data structure type
@@ -423,6 +427,12 @@
          TYPE(adjType) :: eAdj
 !        Function spaces (basis)
          TYPE(fsType), ALLOCATABLE :: fs(:)
+!        Flag for virtual face (i.e. face does not lie on volume mesh)
+         LOGICAL :: virtual = .FALSE.
+!        Name of (virtual) face that caps this face
+         CHARACTER(LEN=stdL) :: capFaceName = ""
+!        ID number of (virtual) face that caps this face
+         INTEGER(KIND=IKIND) :: capFaceID = 0
       END TYPE faceType
 
 !     Declared type for outputed variables
@@ -941,7 +951,7 @@
       INTEGER(KIND=IKIND) startTS
 !     Current equation degrees of freedom
       INTEGER(KIND=IKIND) dof
-!     Global total number of nodes
+!     Global total number of nodes, across all meshes (total) and all procs (global)
       INTEGER(KIND=IKIND) gtnNo
 !     Number of equations
       INTEGER(KIND=IKIND) nEq
@@ -1023,7 +1033,7 @@
       REAL(KIND=RKIND), ALLOCATABLE :: R(:,:)
 !     LHS matrix
       REAL(KIND=RKIND), ALLOCATABLE :: Val(:,:)
-!     Position vector
+!     Position vector of mesh nodes (in ref config)
       REAL(KIND=RKIND), ALLOCATABLE :: x(:,:)
 !     Old variables (velocity)
       REAL(KIND=RKIND), ALLOCATABLE :: Yo(:,:)

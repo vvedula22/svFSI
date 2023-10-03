@@ -136,6 +136,7 @@
       END FUNCTION OPENFILE
 !####################################################################
 !     This function will compute second NORM of a vector
+!     Computes U.U or U.V
       PURE FUNCTION NORMS(U, V)
       IMPLICIT NONE
       REAL(KIND=RKIND), INTENT(IN) :: U(:)
