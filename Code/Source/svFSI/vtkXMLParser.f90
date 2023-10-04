@@ -2607,6 +2607,7 @@
          iatt = 2
          n    = size(u)
 
+         flag = .false.
          do i=1, vtk%pcAtt(iatt)%n
             if ( trim(vtk%pcAtt(iatt)%dataArr(i)%dName) .eq. &
                 trim(kwrd) ) then
