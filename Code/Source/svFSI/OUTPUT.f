@@ -85,7 +85,6 @@
          tmp2 = 1._RKIND
          i    = 0
       ELSE
-         ! Computing convergence metrics to be printed to output
          tmp  = eq(iEq)%FSILS%RI%iNorm/eq(iEq)%iNorm
          tmp1 = tmp/eq(iEq)%pNorm
          tmp2 = eq(iEq)%FSILS%RI%fNorm/eq(iEq)%FSILS%RI%iNorm

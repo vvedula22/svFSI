@@ -128,19 +128,22 @@
             DO a=1, lFa%eNoN
                Ac = lFa%IEN(a,e)+1
                Ac = lFa%gN(Ac)
-               lFa%IEN(a,e) = Ac ! lFa%IEN(a,e) is the GlobalNodeID of node a on element e
+               lFa%IEN(a,e) = Ac
             END DO
          END DO
       END IF
 
-!     Read GlobalElementID from face mesh. This is the ID of the volume element
-!     that the face element lies on. If the face is virtual, then elements of
-!     the face mesh do not lie on volume elements, so there is no GlobalElementID
-!     In this case, gE(e) = 0 for all e.
-!     AB: How does it even find GlobalElementID? There is no array named that for cap.vtp
       ALLOCATE(lFa%gE(lFa%nEl))
       CALL getVTK_elemData(vtp, "GlobalElementID", lFa%gE, iStat)
       IF (iStat .LT. 0) THEN
+!        Stop if both GlobalNodeID and GlobalElementID are not provided
+!        If GlobalNodeID is not provided, then GlobalElementID is used
+!        to populate lFa%gN in CALCNBC subroutine.
+         IF (.NOT.ALLOCATED(lFa%gN)) THEN
+            err = " Could not find both GlobalNodeID and "//
+     2         "GlobalElementID in <"//TRIM(fName)//">"
+         END IF
+
          DEALLOCATE(lFa%gE)
          wrn = " Could not find GlobalElementID in the vtp file"
       ELSE
@@ -534,19 +537,19 @@
                CASE (outGrp_NA)
                   err = "Undefined output grp in VTK"
 
-               CASE (outGrp_A) ! Acceleration
+               CASE (outGrp_A)
                   DO a=1, msh(iM)%nNo
                      Ac = msh(iM)%gN(a)
                      d(iM)%x(is:ie,a) = lA(s:e,Ac)
                   END DO
 
-               CASE (outGrp_Y) ! Velocity
+               CASE (outGrp_Y)
                   DO a=1, msh(iM)%nNo
                      Ac = msh(iM)%gN(a)
                      d(iM)%x(is:ie,a) = lY(s:e,Ac)
                   END DO
 
-               CASE (outGrp_D) ! Displacement
+               CASE (outGrp_D)
                   DO a=1, msh(iM)%nNo
                      Ac = msh(iM)%gN(a)
                      ! Divide by mesh scale factor

@@ -33,10 +33,11 @@
 !
 !     This routine contains predictor/initiator/corrector routines, as
 !     part of time integration scheme.
-!     
-!     See the following publication section 4.4 for theory and derivation:
-!     Bazilevs, Yuri, et al. "Isogeometric fluid-structure interaction: theory, 
-!     algorithms, and computations." Computational mechanics 43 (2008): 3-37.
+!
+!     See the publication below, section 4.4 for theory and derivation:
+!     Bazilevs, et al. "Isogeometric fluid-structure interaction:
+!     theory, algorithms, and computations.", Computational Mechanics,
+!     43 (2008): 3-37. doi: 10.1007/s00466-008-0315-x
 !
 !--------------------------------------------------------------------
 
@@ -133,7 +134,7 @@
       RETURN
       END SUBROUTINE PICP
 !====================================================================
-!     This is the initiator. Compute quantities at  n+am or n+af
+!     This is the initiator. Compute quantities at (n+am) or (n+af)
       SUBROUTINE PICI(Ag, Yg, Dg)
       USE COMMOD
       IMPLICIT NONE
@@ -264,7 +265,7 @@
 !     IB treatment
       IF (ibFlag) CALL IB_PICC()
 
-!     Check for convergence or max iterations of Newton-Raphson iteration
+!     Check for the convergence of Newton-Raphson iterations
       IF (ISZERO(eq(cEq)%FSILS%RI%iNorm)) eq(cEq)%FSILS%RI%iNorm = eps
       IF (ISZERO(eq(cEq)%iNorm)) eq(cEq)%iNorm = eq(cEq)%FSILS%RI%iNorm
       IF (eq(cEq)%itr .EQ. 1) THEN

@@ -71,10 +71,7 @@
       IMPLICIT NONE
       TYPE(eqType), INTENT(INOUT) :: lEq
       INTEGER(KIND=IKIND), INTENT(IN) :: incL(nFacesLS)
-      REAL(KIND=RKIND), INTENT(IN) :: res(nFacesLS) 
-!     res(i) is the resistance of face i for a resistance or LPN-coupled-Neumann boundary
-!     i.e. P_i = res(i) * Q_i. The contribution of boundary resistance to the 
-!     tangent is accounted for by the ADDBCMUL() function within the linear solve.
+      REAL(KIND=RKIND), INTENT(IN) :: res(nFacesLS)
 
 #ifdef WITH_TRILINOS
       INTEGER(KIND=IKIND) a

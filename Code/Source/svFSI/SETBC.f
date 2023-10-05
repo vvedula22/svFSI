@@ -49,9 +49,9 @@
 
       REAL(KIND=RKIND), ALLOCATABLE :: tmpA(:,:), tmpY(:,:)
 
-      DO iEq=1, nEq  ! Loop over equations
-         DO iBc=1, eq(iEq)%nBc ! Loop over BCs
-            IF(BTEST(eq(iEq)%bc(iBc)%bType,bType_CMM)) THEN ! If CMM boundary
+      DO iEq=1, nEq
+         DO iBc=1, eq(iEq)%nBc
+            IF(BTEST(eq(iEq)%bc(iBc)%bType,bType_CMM)) THEN
                s = eq(iEq)%s
                e = eq(iEq)%e
                IF (eq(iEq)%dof .EQ. nsd+1) e = e - 1
@@ -67,7 +67,7 @@
             END IF ! END bType_CMM
 
 !           If not Dirichlet BC or if a weak Dirichlet BC, skip
-            IF (.NOT.BTEST(eq(iEq)%bc(iBc)%bType,bType_Dir)) CYCLE 
+            IF (.NOT.BTEST(eq(iEq)%bc(iBc)%bType,bType_Dir)) CYCLE
             IF (eq(iEq)%bc(iBc)%weakDir) CYCLE
 
             s = eq(iEq)%s
@@ -241,14 +241,12 @@
          iFa = eq(cEq)%bc(iBc)%iFa
          iM  = eq(cEq)%bc(iBc)%iM
 
-!        If the face is virtual, then we do not apply a traction on it,
-!        so we skip the following code which adds contributions from Neumann or
-!        or traction BCs for the virtual face.
-         IF  (msh(iM)%fa(iFa)%virtual) CYCLE
+!        Skip if the face is virtual
+         IF  (msh(iM)%fa(iFa)%vrtual) CYCLE
 
-         IF (BTEST(eq(cEq)%bc(iBc)%bType,bType_Neu)) THEN ! If Neumann BC
+         IF (BTEST(eq(cEq)%bc(iBc)%bType,bType_Neu)) THEN
             CALL SETBCNEUL(eq(cEq)%bc(iBc), msh(iM)%fa(iFa), Yg, Dg)
-         ELSE IF (BTEST(eq(cEq)%bc(iBc)%bType,bType_trac)) THEN ! If Traction BC
+         ELSE IF (BTEST(eq(cEq)%bc(iBc)%bType,bType_trac)) THEN
             CALL SETBCTRACL(eq(cEq)%bc(iBc), msh(iM)%fa(iFa))
          END IF
       END DO
@@ -275,7 +273,7 @@
 !     Geting the contribution of Neu BC
       IF (BTEST(lBc%bType,bType_cpl) .OR.
      2    BTEST(lBc%bType,bType_RCR)) THEN
-         h(1) = lBc%g ! g contains the updated pressures from cplBC, genBC, or RCR (SETBCCPL())
+         h(1) = lBc%g
       ELSE
          IF (BTEST(lBc%bType,bType_gen)) THEN
 !     Using "hl" as a temporary variable here
@@ -283,7 +281,6 @@
             CALL IGBC(lBc%gm, tmpA, hg)
             DEALLOCATE(hg)
          ELSE IF (BTEST(lBc%bType,bType_res)) THEN
-!     Compute pressure by multiplying resistance and flow rate
             h(1) = lBc%r * Integ(lFa, Yn, eq(cEq)%s, eq(cEq)%s+nsd-1)
          ELSE IF (BTEST(lBc%bType,bType_std)) THEN
             h(1) = lBc%g
@@ -306,12 +303,12 @@
       ELSE
          DO a=1, nNo
             Ac     = lFa%gN(a)
-            hg(Ac) = -h(1)*lBc%gx(a) ! gx encodes the spatial profile on this face
+            hg(Ac) = -h(1)*lBc%gx(a)
          END DO
       END IF
 
 !     Add Neumann BCs contribution to the residual (and tangent if flwP)
-      IF (lBc%flwP) THEN ! If follower pressure load
+      IF (lBc%flwP) THEN
          CALL BNEUFOLWP(lBc, lFa, hg, Dg)
       ELSE
          CALL BASSEMNEUBC(lFa, hg, Yg)
@@ -457,7 +454,6 @@
       DO e=1, lFa%nEl
          cDmn  = DOMAIN(msh(iM), cEq, lFa%gE(e))
          cPhys = eq(cEq)%dmn(cDmn)%phys
-         ! Local copies of position, velocity, and displacement
          DO a=1, eNoN
             Ac      = lFa%IEN(a,e)
             ptr(a)  = Ac
@@ -467,19 +463,16 @@
          END DO
          IF (lFa%eType .EQ. eType_NRB) CALL NRBNNXB(msh(iM), lFa, e)
 
-         ! Begin assembling tangent and residual contribution
          lK  = 0._RKIND
          lR  = 0._RKIND
          lKd = 0._RKIND
          DO g=1, lFa%nG
-            ! Get reference config normal vector
             CALL GNNB(lFa, e, g, nsd-1, eNoN, lFa%Nx(:,:,g), nV)
-            Jac = SQRT(NORM(nV)) ! dA_ref / dA_parent
-            nV  = nV/Jac         ! ref config normal
-            w   = lFa%w(g) * Jac ! Scale Gauss weight by ref area
-            N   = lFa%N(:,g)     ! Shape function (on parent element)
+            Jac = SQRT(NORM(nV))
+            nV  = nV/Jac
+            w   = lFa%w(g) * Jac
+            N   = lFa%N(:,g)
 
-            ! Displacement (u) and Velocity (ud)
             u  = 0._RKIND
             ud = 0._RKIND
             DO a=1, eNoN
@@ -488,10 +481,8 @@
             END DO
 
             nDn  = MAT_ID(nsd)
-            ! Magnitude of Robin BC stress
             h(:) = ks*u(:) + cs*ud(:)
-            IF (isN) THEN ! If applied only in normal direction
-               ! h = (h . N) N
+            IF (isN) THEN
                h(:) = NORM(h, nV) * nV(:)
                DO a=1, nsd
                   DO b=1, nsd
@@ -501,14 +492,12 @@
             END IF
 
             IF (nsd .EQ. 3) THEN
-               ! Residual contribution
                DO a=1, eNoN
                   lR(1,a) = lR(1,a) + w*N(a)*h(1)
                   lR(2,a) = lR(2,a) + w*N(a)*h(2)
                   lR(3,a) = lR(3,a) + w*N(a)*h(3)
                END DO
 
-               ! Tangent contribution
                IF (cPhys .EQ. phys_ustruct) THEN
                   wl = w*afv
                   DO a=1, eNoN
@@ -1004,40 +993,40 @@
       INTEGER(KIND=IKIND) iFa, iFaCap, ptr, iBc, iM
       REAL(KIND=RKIND) tmp
 
-!     If coupling scheme is implicit, calculate the resistance matrix M 
-!     (diagonals stored in eq(iEq)%bc(iBc)%r) as well as the updated pressures 
-!     and flowrates from cplBC/genBC.
+!     If coupling scheme is implicit, calculate the resistance matrix M
+!     (diagonals stored in eq(iEq)%bc(iBc)%r) as well as the updated
+!     pressures and flowrates from cplBC/genBC.
       IF (cplBC%schm .EQ. cplBC_I) THEN
          CALL CALCDERCPLBC()
 
-!     If semi-implicit or explicit, don't calculate resistance. Just compute the 
-!     updated pressure and flowrates from cplBC/genBC.
-      ELSE 
+!     If semi-implicit or explicit, don't calculate resistance matrix.
+!     Only compute the updated pressure and flowrates from cplBC/genBC.
+      ELSE
          DO iBc=1, eq(iEq)%nBc
             iFa = eq(iEq)%bc(iBc)%iFa
             iM  = eq(iEq)%bc(iBc)%iM
             ptr = eq(iEq)%bc(iBc)%cplBCptr
             IF (ptr .NE. 0) THEN
-!              Compute flow rates from 3D Neumann boundaries at timesteps n 
+!              Compute flow rates from 3D Neu boundaries at timesteps n
 !              and n+1
                IF (BTEST(eq(iEq)%bc(iBc)%bType,bType_Neu)) THEN
-                  cplBC%fa(ptr)%Qo = Integ(msh(iM)%fa(iFa),Yo,1,
-     2                                    nsd, .FALSE.,'o') 
-                  cplBC%fa(ptr)%Qn = Integ(msh(iM)%fa(iFa),Yn,1,
-     2                                    nsd, .FALSE.,'n')
+                  cplBC%fa(ptr)%Qo = Integ(msh(iM)%fa(iFa), Yo, 1,
+     2               nsd, cfgin='o')
+                  cplBC%fa(ptr)%Qn = Integ(msh(iM)%fa(iFa), Yn, 1,
+     2               nsd, cfgin='n')
 
 !                 Add velocity flux from cap if face is capped
-                  iFaCap = msh(iM)%fa(iFa)%capFaceID
-                  IF (iFaCap .NE. 0) THEN ! If face is capped
-                     cplBC%fa(ptr)%Qo = cplBC%fa(ptr)%Qo + 
-     2                    Integ(msh(iM)%fa(iFaCap),Yo,1,nsd,.FALSE.,'o')
-                     cplBC%fa(ptr)%Qn = cplBC%fa(ptr)%Qn + 
-     2                    Integ(msh(iM)%fa(iFaCap),Yn,1,nsd,.FALSE.,'n')
+                  iFaCap = msh(iM)%fa(iFa)%capID
+                  IF (iFaCap .NE. 0) THEN
+                     cplBC%fa(ptr)%Qo = cplBC%fa(ptr)%Qo +
+     2                  Integ(msh(iM)%fa(iFaCap), Yo, 1, nsd, cfgin='o')
+                     cplBC%fa(ptr)%Qn = cplBC%fa(ptr)%Qn +
+     2                  Integ(msh(iM)%fa(iFaCap), Yn, 1, nsd, cfgin='n')
                   END IF
 
                   cplBC%fa(ptr)%Po = 0._RKIND
                   cplBC%fa(ptr)%Pn = 0._RKIND
-!              Compute avg pressures from 3D Dirichlet boundaries at timesteps
+!              Compute avg pressures from 3D Dir boundaries at timesteps
 !              n and n+1
                ELSE IF (BTEST(eq(iEq)%bc(iBc)%bType,bType_Dir)) THEN
                   tmp = msh(iM)%fa(iFa)%area
@@ -1048,6 +1037,7 @@
                END IF
             END IF
          END DO
+
 !        Call genBC or cplBC to get updated pressures and flowrates
          IF (cplBC%useGenBC) THEN
             CALL genBC_Integ_X('T')
@@ -1060,6 +1050,7 @@
             CALL cplBC_Integ_X(RCRflag)
          END IF
       END IF
+
 !     Set g variable to updated pressures or flowrates (contained in y)
       DO iBc=1, eq(iEq)%nBc
          iFa = eq(iEq)%bc(iBc)%iFa
@@ -1071,12 +1062,13 @@
       END SUBROUTINE SETBCCPL
 !--------------------------------------------------------------------
 !     Resistance matrix M ~ dP/dQ is calculated here.
-!     This function computes eq(iEq)%bc(iBc)%r = (cplBC%fa(i)%y - orgY(i))/diff
-!     bc%r is added to the stiffness matrix (it is not explicitly added to the
-!     stiffness, but instead its product with a vector is added to the 
-!     matrix-vector product in the iterative linear solver)
-!     This function also calculates the updated pressure and flow from from cplBC 
-!     or genBC
+!     This function computes using finite difference approximation,
+!        eq(iEq)%bc(iBc)%r = (cplBC%fa(i)%y - orgY(i))/diff
+!     bc%r is added to the stiffness matrix. Note that bc%r is not
+!     explicitly added to the stiffness, but instead its product with a
+!     vector is added to the matrix-vector product in the iterative
+!     linear solver. This function also calculates the updated pressure
+!     and flow from from cplBC or genBC
       SUBROUTINE CALCDERCPLBC
       USE COMMOD
       USE ALLFUN
@@ -1090,7 +1082,7 @@
       REAL(KIND=RKIND) diff, area
 
       REAL(KIND=RKIND), ALLOCATABLE :: orgY(:), orgQ(:)
-!     If all coupling is to Dirichlet faces, no derivative is needed 
+!     If the oupling is all with Dir faces, no derivative is needed
 !     (see Moghadam et al. 2013 Section 2.2.2)
       IF (ALL(cplBC%fa%bGrp .EQ. cplBC_Dir)) RETURN
 
@@ -1100,36 +1092,38 @@
          iM  = eq(iEq)%bc(iBc)%iM
          ptr = eq(iEq)%bc(iBc)%cplBCptr
          IF (ptr .NE. 0) THEN
-!           Compute flow rates from 3D Neumann boundaries at timesteps n 
-!           and n+1
+!           Compute flow rates from 3D Neumann boundaries at timesteps
+!           n and n+1
             IF (BTEST(eq(iEq)%bc(iBc)%bType,bType_Neu)) THEN
-               cplBC%fa(ptr)%Qo = Integ(msh(iM)%fa(iFa),Yo,1,
-     2                                 nsd, .FALSE.,'o') 
-               cplBC%fa(ptr)%Qn = Integ(msh(iM)%fa(iFa),Yn,1,
-     2                                 nsd, .FALSE.,'n')
+               cplBC%fa(ptr)%Qo = Integ(msh(iM)%fa(iFa), Yo, 1, nsd,
+     2            cfgin='o')
+               cplBC%fa(ptr)%Qn = Integ(msh(iM)%fa(iFa), Yn, 1, nsd,
+     2            cfgin='n')
 
 !              Add velocity flux from cap if face is capped
-               iFaCap = msh(iM)%fa(iFa)%capFaceID
+               iFaCap = msh(iM)%fa(iFa)%capID
                IF (iFaCap .NE. 0) THEN ! If face is capped
-                  cplBC%fa(ptr)%Qo = cplBC%fa(ptr)%Qo + 
-     2                  Integ(msh(iM)%fa(iFaCap),Yo,1,nsd,.FALSE.,'o')
-                  cplBC%fa(ptr)%Qn = cplBC%fa(ptr)%Qn + 
-     2                  Integ(msh(iM)%fa(iFaCap),Yn,1,nsd,.FALSE.,'n')
+                  cplBC%fa(ptr)%Qo = cplBC%fa(ptr)%Qo +
+     2                  Integ(msh(iM)%fa(iFaCap), Yo, 1, nsd, cfgin='o')
+                  cplBC%fa(ptr)%Qn = cplBC%fa(ptr)%Qn +
+     2                  Integ(msh(iM)%fa(iFaCap), Yn, 1, nsd, cfgin='n')
                END IF
 
                cplBC%fa(ptr)%Po = 0._RKIND
                cplBC%fa(ptr)%Pn = 0._RKIND
-!           Compute avg pressures from 3D Dirichlet boundaries at timesteps
-!           n and n+1
+
+!           Compute avg pressures from 3D Dirichlet boundaries at
+!           timesteps n and n+1
             ELSE IF (BTEST(eq(iEq)%bc(iBc)%bType,bType_Dir)) THEN
                area = msh(iM)%fa(iFa)%area
-               cplBC%fa(ptr)%Po = Integ(msh(iM)%fa(iFa),Yo,nsd+1)/area
-               cplBC%fa(ptr)%Pn = Integ(msh(iM)%fa(iFa),Yn,nsd+1)/area
+               cplBC%fa(ptr)%Po = Integ(msh(iM)%fa(iFa), Yo, nsd+1)/area
+               cplBC%fa(ptr)%Pn = Integ(msh(iM)%fa(iFa), Yn, nsd+1)/area
                cplBC%fa(ptr)%Qo = 0._RKIND
                cplBC%fa(ptr)%Qn = 0._RKIND
             END IF
          END IF
       END DO
+
 !     Call genBC or cplBC to get updated pressures and flowrates
       IF (cplBC%useGenBC) THEN
          CALL genBC_Integ_X('D')
@@ -1142,9 +1136,8 @@
          CALL cplBC_Integ_X(RCRflag)
       END IF
 
-!     Compute the epsilon parameter (diff) for finite difference approx of 
-!     M ~ dP/dQ (see Moghadam et al. 2013, eq. 30)
-!     The computation of |Q_j| is a generalization to multiple Neumann surfaces
+!     Compute the epsilon parameter (diff) for the finite difference
+!     approx of M ~ dP/dQ.
       j    = 0
       diff = 0._RKIND
       DO iBc=1, eq(iEq)%nBc
@@ -1155,7 +1148,7 @@
          END IF
       END DO
       diff = SQRT(diff/REAL(j, KIND=RKIND))
-      IF (diff*relTol .GT. absTol .OR. diff .EQ. 0.0) THEN
+      IF ((diff*relTol .GT. absTol) .OR. (diff .EQ. 0._RKIND)) THEN
          diff = absTol
       ELSE
          diff = diff*relTol
@@ -1168,7 +1161,7 @@
       DO iBc=1, eq(iEq)%nBc
          i = eq(iEq)%bc(iBc)%cplBCptr
          IF (i.NE.0 .AND. BTEST(eq(iEq)%bc(iBc)%bType,bType_Neu)) THEN
-!           Finite difference perturbation in flow rate (Q_i^n+1 + epsilon)
+!           Finite difference perturbation in flow rate (Q_i^n+1 + eps)
             cplBC%fa(i)%Qn = orgQ(i) + diff
 
 !           Call genBC or cplBC again with perturbed Q
@@ -1178,16 +1171,16 @@
                CALL cplBC_Integ_X(RCRflag)
             END IF
 
-!           Compute finite difference approximation of resistance matrix 
-!           M ~ dP/dQ (eq. 29)
+!           Compute finite difference approx of resistance matrix, M
             eq(iEq)%bc(iBc)%r = (cplBC%fa(i)%y - orgY(i))/diff
 
-!           Set resistance for capping bc if it exists for this bc. Set it
-!           to be the same resistance as the capped bc
+!           Set resistance for capping bc if it exists for this bc.
+!           Set it to be the same resistance as the capped bc
             iCapBC = eq(iEq)%bc(iBc)%iCapBC
             IF (iCapBC .NE. 0) THEN
                eq(iEq)%bc(iCapBC)%r =  eq(iEq)%bc(iBc)%r
             END IF
+
 !           Set pressure and flow rate back to original values
             cplBC%fa(:)%y  = orgY
             cplBC%fa(:)%Qn = orgQ
@@ -1208,10 +1201,11 @@
       INTEGER(KIND=IKIND) fid, iFa, nDir, nNeu
 
       REAL(KIND=RKIND), ALLOCATABLE :: y(:)
-!     Calculate number of Dirichlet and Neumann coupled surfaces in 3D domain
+
+!     Number of Dirichlet and Neumann coupled surfaces in the 3D domain
       nDir  = 0
       nNeu  = 0
-      IF (cm%mas()) THEN ! If this proc is the master proc on the communicator
+      IF (cm%mas()) THEN
          DO iFa=1, cplBC%nFa
             IF (cplBC%fa(iFa)%bGrp .EQ. cplBC_Dir) THEN
                nDir = nDir + 1
@@ -1219,14 +1213,14 @@
                nNeu = nNeu + 1
             END IF
          END DO
-!        Write coupling info (number of Dirichlet and Neumann surfaces, pressure, 
-!        flow rate) from 3D to cplBC communication file (for GenBC, usually 
-!        called GenBC.int)
+
+!        Write coupling info from 3D to cplBC communication file
+!        (for GenBC, usually called GenBC.int)
          fid = 1
          OPEN(fid, FILE=TRIM(cplBC%commuName), FORM='UNFORMATTED')
-!        Flag for how genBC behaves (I: Initializing, T: Iteration loop, 
-!        L: Last iteration, D: Derivative)
-         WRITE(fid) genFlag   
+!        genFlag: Flag for how genBC behaves (I: Initializing,
+!        T: Iteration loop, L: Last iteration, D: Derivative)
+         WRITE(fid) genFlag
          WRITE(fid) dt
          WRITE(fid) nDir
          WRITE(fid) nNeu
@@ -1242,7 +1236,9 @@
          END DO
          CLOSE(fid)
 
-!        Call genBC executable which reads the communication file GenBC.int
+!        Call genBC exec that reads the communication file GenBC.int
+!        The 0D solver will then overwrite GenBC.int with updated
+!        pressures, flowrates, and any other 0D state variables
          CALL SYSTEM(TRIM(cplBC%binPath)//" "//TRIM(cplBC%commuName))
 
 !        Read outputs from genBC, which are in the same GenBC.int
@@ -1260,9 +1256,9 @@
          CLOSE(fid)
       END IF
 
-!     If there are multiple procs (not sequential), broadcast genBC outputs to 
-!     follower procs
-      IF (.NOT.cm%seq()) THEN 
+!     If there are multiple procs (not sequential), broadcast genBC
+!     output to follower procs
+      IF (.NOT.cm%seq()) THEN
          ALLOCATE(y(cplBC%nFa))
          IF (cm%mas()) y = cplBC%fa%y
          CALL cm%bcast(y)

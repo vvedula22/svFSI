@@ -92,24 +92,24 @@
       CONTAINS
 
 !--------------------------------------------------------------------
-!     This routine gathers a vector quantity (e.g. position) for node Ac from 
+!     This routine gathers a vector quantity (e.g. position) for node Ac from
 !     local arrays across all procs. Then sets a local vector snode on the master
-!     proc to the vector quantity, and sets the local vector snode on all 
+!     proc to the vector quantity, and sets the local vector snode on all
 !     follower procs to zero.
-!     
+!
 !     In IntegV, a integral over a virtual face is performed by master
 !     alone, which must gather virtual face nodal values from other
 !     procs if master does not own the desired node. This function gathers
 !     all nodal values to master by performing the MPI communication
-!     among procs. 
+!     among procs.
 !
 !     ARGS:
 !     s(nsd, tnNo): a 2D array of values at each node. E.g. position vector at each node
 !     Ac: Index of node belonging to this proc. If Ac = 0, then the desired
 !     node does not belong to this proc
-!     snode(nsd): The vector value at the desired node. 
+!     snode(nsd): The vector value at the desired node.
 
-!     At the end of this routine, snode is the vector value at the desired node 
+!     At the end of this routine, snode is the vector value at the desired node
 !     on master, and zero on all slaves.
       SUBROUTINE GatherMasterV(s, Ac, snode)
       USE COMMOD
@@ -122,12 +122,12 @@
       INTEGER(KIND=IKIND), INTENT(IN) :: Ac
       ! Vector containing s at a node
       REAL(KIND=RKIND), INTENT(OUT) :: snode(:)
-   
+
       ! Allocate useful variables
       INTEGER(KIND=IKIND) p, ierr, sz
-      
+
       ! Temporary array containing snode from all procs
-      REAL(KIND=RKIND), ALLOCATABLE :: sgather(:,:) 
+      REAL(KIND=RKIND), ALLOCATABLE :: sgather(:,:)
       ! Get size of snode
       sz = SIZE(snode) ! usually nsd or nsd+1
 
@@ -136,7 +136,7 @@
       ELSE ! This proc does own this node
          snode = s(:,Ac) ! Get nodal function value to use
       END IF
-!     Communicate the true snode value among all procs. We use the 
+!     Communicate the true snode value among all procs. We use the
 !     gather operation to get snode from all procs onto master.
       ! First, allocate space for snode values. The size of sgather
       ! vector is the number of procs being used.
@@ -154,8 +154,8 @@
             END IF
          END DO
       ELSE ! If not master, set snode to 0 so they don't contribute to integral
-         snode = 0._RKIND 
-      END IF 
+         snode = 0._RKIND
+      END IF
 
 !     Clean up
       DEALLOCATE(sgather)
@@ -164,23 +164,23 @@
       END SUBROUTINE GatherMasterV
 
 !--------------------------------------------------------------------
-!     This routine gathers a scalar quantity for node Ac from 
+!     This routine gathers a scalar quantity for node Ac from
 !     local arrays across all procs. Then sets a local scalar snode on the master
-!     proc to the scalar quantity, and sets the local scalar snode on all 
+!     proc to the scalar quantity, and sets the local scalar snode on all
 !     follower procs to zero.
 !
 !     In IntegS, a integral over a virtual face is performed by master
 !     alone, which must gather virtual face nodal values from other
 !     procs if master does not own the desired node. This function gathers
 !     all nodal values to master by performing the MPI communication
-!     among procs. 
+!     among procs.
 !
 !     ARGS:
 !     s(tnNo): a 1D array of values at each node
 !     Ac: Index of node belonging to this proc. If Ac = 0, then the desired
 !     node does not belong to this proc
-!     snode: The scalar value at the desired node. 
-!     
+!     snode: The scalar value at the desired node.
+!
 !     At the end of this routine
 !     snode is the value at the desired node on master, and zero on all slaves.
       SUBROUTINE GatherMasterS(s, Ac, snode)
@@ -194,10 +194,10 @@
       INTEGER(KIND=IKIND), INTENT(IN) :: Ac
       ! Vector containing s at a node
       REAL(KIND=RKIND), INTENT(OUT) :: snode
-   
+
       ! Allocate useful variables
       INTEGER(KIND=IKIND) p, ierr
-      
+
       ! Temporary array containing scalar value snode from all procs
       REAL(KIND=RKIND), ALLOCATABLE :: sgather(:)
 
@@ -206,7 +206,7 @@
       ELSE ! This proc does own this node
          snode = s(Ac) ! Get nodal function value to use
       END IF
-!     Communicate the true snode value among all procs. We use the 
+!     Communicate the true snode value among all procs. We use the
 !     gather operation to get snode from all procs onto master.
       ! First, allocate space for snode values. The size of sgather
       ! vector is the number of procs being used.
@@ -224,8 +224,8 @@
             END IF
          END DO
       ELSE ! If not master, set snode to 0 so they don't contribute to integral
-         snode = 0._RKIND 
-      END IF 
+         snode = 0._RKIND
+      END IF
 
 !     Clean up
       DEALLOCATE(sgather)
@@ -237,10 +237,10 @@
 !     (Integrate Scalar)
 !     ARGS:
 !     lFa: A face type, representing a face on the computational mesh
-!     s: An array containing scalar value at each node 
+!     s: An array containing scalar value at each node
 !     pflag: Flag for using Taylor-Hood function space for pressure
-!     cfgin: A character ('r', 'o', or 'n') denoting which configuration 
-!     (reference = timestep 0, old = timestep n, or new = timestep n+1) to 
+!     cfgin: A character ('r', 'o', or 'n') denoting which configuration
+!     (reference = timestep 0, old = timestep n, or new = timestep n+1) to
 !     integrate in.
       FUNCTION IntegS(lFa, s, pflag, cfgin)
       USE COMMOD
@@ -252,7 +252,7 @@
       REAL(KIND=RKIND) IntegS, snode
 
       LOGICAL isIB, flag
-      CHARACTER cfg 
+      CHARACTER cfg
       INTEGER(KIND=IKIND) a, e, g, Ac, nNo, insd
       REAL(KIND=RKIND) sHat, Jac, n(nsd)
       TYPE(fsType) :: fs
@@ -260,7 +260,7 @@
       flag = .FALSE.
       IF (PRESENT(pflag)) flag = pFlag
 
-      ! Deal with optional config flag. If cfg is not provided, use reference config
+!     If cfg is not provided, use reference config
       cfg = 'r'
       IF(PRESENT(cfgin)) THEN
          cfg = cfgin
@@ -340,16 +340,16 @@
 !     Calculating the function value
             sHat = 0._RKIND
             DO a=1, fs%eNoN
-               IF (.NOT. lFa%virtual) THEN
+               IF (.NOT. lFa%vrtual) THEN
 !                 Get local node number on proc. Ac in [1,tnNo]
-                  Ac   = lFa%IEN(a,e)  
+                  Ac   = lFa%IEN(a,e)
 !                 Get nodal function value to use
-                  snode = s(Ac)        
+                  snode = s(Ac)
                ELSE ! If virtual face, then master may need to get value from another proc
-                  Ac   = lFa%IEN(a,e) 
-                  ! Gather face node (a,e) value to master snode. On follower procs, snode = 0 
+                  Ac   = lFa%IEN(a,e)
+                  ! Gather face node (a,e) value to master snode. On follower procs, snode = 0
                   CALL GatherMasterS(s, Ac, snode)
-               END IF  
+               END IF
                sHat = sHat + snode*fs%N(a,g)
             END DO
 !     Now integrating
@@ -364,14 +364,14 @@
       END FUNCTION IntegS
 !--------------------------------------------------------------------
 !     This routine integrates vector variable s dotted with the face normal n
-!     over the mesh face lFa. For example, if s contains the velocities at each 
+!     over the mesh face lFa. For example, if s contains the velocities at each
 !     node on the face, this function computes the velocity flux through this face.
 !     (Integrate Vector)
 !     ARGS:
 !     lFa: A face type, representing a face on the computational mesh
 !     s: An array containing a vector value at each node
-!     cfgin: A character ('r', 'o', or 'n') denoting which configuration 
-!     (reference = timestep 0, old = timestep n, or new = timestep n+1) to 
+!     cfgin: A character ('r', 'o', or 'n') denoting which configuration
+!     (reference = timestep 0, old = timestep n, or new = timestep n+1) to
 !     integrate in.
 
       FUNCTION IntegV(lFa, s, cfgin)
@@ -379,7 +379,7 @@
       IMPLICIT NONE
       TYPE(faceType), INTENT(IN) :: lFa
       REAL(KIND=RKIND), INTENT(IN) :: s(:,:)
-      CHARACTER, INTENT(IN), OPTIONAL :: cfgin 
+      CHARACTER, INTENT(IN), OPTIONAL :: cfgin
       REAL(KIND=RKIND) IntegV
 
       LOGICAL isIB
@@ -389,7 +389,7 @@
       ! Temporary vector containing s at a node
       REAL(KIND=RKIND) snode(nsd)
 
-      ! Deal with optional config flag. If cfg is not provided, use reference config
+!     If cfg is not provided, use reference config
       cfg = 'r'
       IF(PRESENT(cfgin)) THEN
          cfg = cfgin
@@ -428,7 +428,7 @@
 
          DO g=1, lFa%nG ! For each Gauss integration point
             IF (.NOT.isIB) THEN
-               CALL GNNB(lFa, e, g, nsd-1, lFa%eNoN, 
+               CALL GNNB(lFa, e, g, nsd-1, lFa%eNoN,
      2          lFa%Nx(:,:,g), n, cfg)
             ELSE
                CALL GNNIB(lFa, e, g, n)
@@ -437,14 +437,14 @@
 !     Calculating the function value (s . n)dA at this Gauss point
             sHat = 0._RKIND
             DO a=1, lFa%eNoN ! For each node on element
-               IF (.NOT. lFa%virtual) THEN 
+               IF (.NOT. lFa%vrtual) THEN
 !                 Get local node number of proc. Ac in [1,tnNo]
-                  Ac = lFa%IEN(a,e) 
+                  Ac = lFa%IEN(a,e)
 !                 Get nodal function value to use
-                  snode(:) = s(:,Ac) 
+                  snode(:) = s(:,Ac)
                ELSE ! If virtual face, then master may need to get value from another proc
                   Ac = lFa%IEN(a,e)
-                  ! Gather face node (a,e) value to master snode. On follower procs, snode = 0 
+                  ! Gather face node (a,e) value to master snode. On follower procs, snode = 0
                   CALL GatherMasterV(s, Ac, snode)
                END IF
 !              Compute dot product of s and n at Gauss point
@@ -465,7 +465,7 @@
 !--------------------------------------------------------------------
 !     This routine integrates s(l:u,:) over the mesh face lFa.
 !     This function is a general interface to integrating
-!     scalar or vector values over the face. 
+!     scalar or vector values over the face.
 !     If s is array of scalars, calls IntegS
 !     If s is array of vectors, calls IntegV
       FUNCTION IntegG(lFa, s, l, uo, THflag, cfgin)
@@ -490,7 +490,7 @@
       flag = .FALSE.
       IF (PRESENT(THflag)) flag = THflag
 
-      ! Deal with optional config flag. If cfg is not provided, use reference config
+!     If cfg is not provided, use reference config
       cfg = 'r'
       IF(PRESENT(cfgin)) THEN
          cfg = cfgin
@@ -507,13 +507,13 @@
       END IF
 
       IntegG = 0._RKIND
-      IF (u-l+1 .EQ. nsd) THEN ! s represents a vector field, so use IntegV
+      IF (u-l+1 .EQ. nsd) THEN
          ALLOCATE (vec(nsd,nNo))
          DO a=1, nNo
             vec(:,a) = s(l:u,a)
          END DO
          IntegG = IntegV(lFa,vec,cfg)
-      ELSE IF (l .EQ. u) THEN ! s represents a scalar field, so use IntegS
+      ELSE IF (l .EQ. u) THEN
          ALLOCATE (sclr(nNo))
          DO a=1, nNo
             sclr(a) = s(l,a)
@@ -1350,10 +1350,12 @@
          DEALLOCATE(lFa%fs)
       END IF
 
-      lFa%eType = eType_NA
-      lFa%nEl   = 0
-      lFa%nNo   = 0
-      lFa%gnEl  = 0
+      lFa%vrtual = .FALSE.
+      lFa%eType  = eType_NA
+      lFa%nEl    = 0
+      lFa%nNo    = 0
+      lFa%gnEl   = 0
+      lFa%capID  = 0
 
       RETURN
       END SUBROUTINE DESTROYFACE

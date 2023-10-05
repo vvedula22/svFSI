@@ -922,18 +922,19 @@
          CALL READBC(lEq%bc(iBc), lPBC, lEq%phys)
       END DO
 
-!     If an LPN-coupled face has a cap, automatically create a coupled BC
-!     for the cap face. This is necessary because we need svFSI to process
-!     the cap face as a coupled BC to add its contribution to the tangent
+!     If an LPN-coupled face has a cap, automatically create a coupled
+!     BC for the cap face. This is necessary because we need svFSI to
+!     process the cap face as a coupled BC to add its contribution to
+!     the tangent
       DO iBc=1, lEq%nBc
          IF (BTEST(lEq%bc(iBc)%bType, bType_cpl)) THEN
-            IF (lEq%bc(iBc)%capFaceName .NE. "") THEN ! If coupled BC has a cap
+            IF (lEq%bc(iBc)%capName .NE. "") THEN
                ! Add a bc for the cap to the end of lEq%bc(:), and add
-               ! cap face info to face being capped (capFaceName and
-               ! capFaceID fields) 
+               ! cap face info to the face being capped (capName and
+               ! capID fields)
                CALL ADDCAPBC(lEq, iBc)
             END IF
-         END IF 
+         END IF
       END DO
 
 !     Initialize cplBC for RCR-type BC
@@ -1580,14 +1581,10 @@
 !     Reading the type: Dir/Neu/Per
       lPtr => list%get(ctmp,"Type")
       SELECT CASE (ctmp)
-!     IBSET sets the bit at position bType_Dir to 1 in lBc%bType. lBc%bType can
-!     have multiple bTypes set
       CASE ("Dirichlet","Dir")
          lBc%bType = IBSET(lBc%bType,bType_Dir)
       CASE ("Neumann","Neu")
          lBc%bType = IBSET(lBc%bType,bType_Neu)
-         IF (phys.EQ.phys_fluid .OR. phys.EQ.phys_FSI)
-     2      lBc%bType = IBSET(lBc%bType,bType_bfs) ! bType_bfs does not appear to be used
       CASE ("Traction","Trac")
          lBc%bType = IBSET(lBc%bType,bType_trac)
 
@@ -1703,8 +1700,8 @@
      2         " using Coupled BC"
          END IF
 
-!        AB 7/13/22: Read cap face name for this coupled BC
-         lPtr => list%get(lBc%capFaceName,"Cap")
+!        Read cap face name for this coupled BC
+         lPtr => list%get(lBc%capName, "Capping face")
 
       CASE ('Resistance')
          lBc%bType = IBSET(lBc%bType,bType_res)
@@ -1948,7 +1945,7 @@ c     2         "can be applied for Neumann boundaries only"
          END SELECT
       END IF
 
-!     For Neumann BC, if load vector changing with deformation
+!     For Neumann BC, if the load vector changes with deformation
 !     (follower pressure)
       lBc%flwP = .FALSE.
       IF (BTEST(lBc%bType,bType_Neu)) THEN
@@ -3398,17 +3395,18 @@ c     2         "can be applied for Neumann boundaries only"
       RETURN
       END SUBROUTINE READWALLPROPSFF
 !#######################################################################
-!     Adds a bc to lEq%bc(:) at the end for a cap. Copies most of bc info
-!     from lEq%bc(iBc), which corresponds to the capped surface.
-!     Also, sets info about caping face in capped face (capFaceName 
-!     and capFaceID fields)
+!     Adds a bc to lEq%bc(:) at the end for a cap. Copies most of the bc
+!     info from lEq%bc(iBc), which corresponds to the capped surface.
+!     Also, sets info about caping face in capped face (capName
+!     and capID fields)
       SUBROUTINE ADDCAPBC(lEq, iBc)
       USE COMMOD
       USE ALLFUN
       IMPLICIT NONE
       TYPE(eqType), INTENT(INOUT) :: lEq
       INTEGER(KIND=IKIND), INTENT(IN) :: iBc
-      TYPE(bcType), ALLOCATABLE :: oldBcs(:)
+
+      TYPE(bcType), ALLOCATABLE :: oldBCs(:)
       INTEGER(KIND=IKIND) jBc, iFa, iM
 
 !     We are adding a new BC for the cap, so we need to update the
@@ -3418,6 +3416,7 @@ c     2         "can be applied for Neumann boundaries only"
       ALLOCATE(oldBcs(lEq%nBc))
       DO jBc=1, lEq%nBc
          CALL COPYBC(lEq%bc(jBc), oldBcs(jBc))
+         CALL DESTROY(lEq%bc(jBc))
       END DO
 !     Increment number of BCs
       lEq%nBc = lEq%nBc + 1
@@ -3431,64 +3430,113 @@ c     2         "can be applied for Neumann boundaries only"
          CALL COPYBC(oldBcs(jBc), lEq%bc(jBc))
       END DO
 
-      ! Add on new BC for capping surface. Copy BC information from capped surface
-      ! This surface corresponds to index iBc
+!     Add on new BC for capping surface. Copy BC information from the
+!     capped surface. This surface corresponds to index iBc - argument
+!     passed as input to this subroutine
       CALL COPYBC(lEq%bc(iBc),  lEq%bc(lEq%nBc))
 
-      ! Correct some values in capping surface BC (corresponding to nBc)
+!     Correct some values in capping surface BC (corresponding to nBc)
       cplBC%nFa = cplBC%nFa + 1
       lEq%bc(lEq%nBc)%cplBcPtr = cplBC%nFa
-      CALL FINDFACE(lEq%bc(iBc)%capFaceName, 
-     2               lEq%bc(lEq%nBc)%iM, lEq%bc(lEq%nBc)%iFa)
-      lEq%bc(lEq%nBC)%capFaceName = ""
+      CALL FINDFACE(lEq%bc(iBc)%capName,
+     2              lEq%bc(lEq%nBc)%iM, lEq%bc(lEq%nBc)%iFa)
+      lEq%bc(lEq%nBC)%capName = ""
 
-!     Store info about capping face in capped face
-      iFa = lEq%bc(iBc)%iFa ! capped face
-      iM = lEq%bc(iBc)%iM   ! mesh containing capped face
-      msh(iM)%fa(iFa)%capFaceName = lEq%bc(iBc)%capFaceName ! Copy cap face name
-      msh(iM)%fa(iFa)%capFaceID = lEq%bc(lEq%nBc)%iFa ! Copy cap face ID
+!     Set capID pointer in the capped face
+      iFa = lEq%bc(iBc)%iFa
+      iM  = lEq%bc(iBc)%iM
+      msh(iM)%fa(iFa)%capID = lEq%bc(lEq%nBc)%iFa ! Copy cap face ID
 
-!     Store BcID of capping surface bc in capped surface bc
+!     Set a pointer to the capping surface BC in the capped surface bc
       lEq%bc(iBc)%iCapBC = lEq%nBc
 
       END SUBROUTINE ADDCAPBC
-
 !#######################################################################
-!     Performs deep copy of old BC (oBc) to new BC (nBc)
+!     Performs a deep copy of old BC (oBc) to new BC (nBc)
       SUBROUTINE COPYBC(oBc, nBc)
       USE COMMOD
       USE ALLFUN
       IMPLICIT NONE
       TYPE(bcType), INTENT(IN) :: oBc
       TYPE(bcType), INTENT(OUT) :: nBc
+
       INTEGER(KIND=IKIND) jBc, iFa, iM
 
-      nBc%weakDir = oBc%weakDir
-      nBc%flwP = oBc%flwP
-      nBc%rbnN = oBc%rbnN
-      nBc%bType = oBc%bType
+!     Copy bool, integers, and real values
+      nBc%weakDir  = oBc%weakDir
+      nBc%flwP     = oBc%flwP
+      nBc%rbnN     = oBc%rbnN
+      nBc%bType    = oBc%bType
       nBc%cplBCptr = oBc%cplBCptr
-      nBc%iFa = oBc%iFa
-      nBc%iM = oBc%iM
-      nBc%lsPtr = oBc%lsPtr
-      nBc%masN = oBc%masN
-      nBc%g = oBc%g
-      nBc%r = oBc%r
-      nBc%k = oBc%k
-      nBc%c = oBc%c
-      nBc%tauB = oBc%tauB
+      nBc%iFa      = oBc%iFa
+      nBc%iM       = oBc%iM
+      nBc%lsPtr    = oBc%lsPtr
+      nBc%masN     = oBc%masN
+      nBc%g        = oBc%g
+      nBc%r        = oBc%r
+      nBc%k        = oBc%k
+      nBc%c        = oBc%c
+      nBc%tauB     = oBc%tauB
 
-!     For allocatable types, need to be careful. If it is not allocated in oBc
-!     and we assign to the corresponding member of nBc, we will get a segfault
-!     (at least on Sherlock, although not on AB's Mac)
-      IF (ALLOCATED(oBc%eDrn)) nBc%eDrn = oBc%eDrn
-      IF (ALLOCATED(oBc%h)) nBc%h = oBc%h
-      IF (ALLOCATED(oBc%gx)) nBc%gx = oBc%gx
-      IF (ALLOCATED(oBc%gm)) nBc%gm = oBc%gm
-      IF (ALLOCATED(oBc%gt)) nBc%gt = oBc%gt
+!     Set local iFa and iM
+      iFa = nBc%iFa
+      iM  = nBc%iM
 
-      nBc%RCR = oBc%RCR
-      nBc%capFaceName = oBc%capFaceName
-      nBc%iCapBC = oBc%iCapBC
+!     Now copy allocatable types but are always allocated
+      ALLOCATE(nBc%eDrn(nsd), nBc%h(nsd))
+      nBc%eDrn = oBc%eDrn
+      nBc%h    = oBc%h
+
+!     Now copy allocatable but derived types
+!     If the bc has spatial profile
+      IF (ALLOCATED(oBc%gx)) THEN
+         ALLOCATE(nBc%gx(msh(iM)%fa(iFa)%nNo))
+         nBc%gx = oBc%gx
+      END IF
+
+!     If the bc is a moving boundary
+      IF (ALLOCATED(oBc%gm)) THEN
+         ALLOCATE(nBc%gm)
+         nBc%gm%dof    = oBc%gm%dof
+         nBc%gm%nTP    = oBc%gm%nTP
+         nBc%gm%period = oBc%gm%period
+
+         ALLOCATE(nBc%gm%t(nBc%gm%nTP))
+         ALLOCATE(nBc%gm%d(nBc%gm%dof,msh(iM)%fa(iFa)%nNo,nBc%gm%nTP))
+         nBc%gm%t = oBc%gm%t
+         nBc%gm%d = oBc%gm%d
+      END IF
+
+!     If the bc has Fourier Coefficients set
+      IF (ALLOCATED(oBc%gt)) THEN
+         ALLOCATE(nBc%gt)
+         nBc%gt%lrmp = oBc%gt%lrmp
+         nBc%gt%n    = oBc%gt%n
+         nBc%gt%d    = oBc%gt%d
+         nBc%gt%T    = oBc%gt%T
+         nBc%gt%ti   = oBc%gt%ti
+
+         ALLOCATE(nBc%gt%qi(nBc%gt%d), nBc%gt%qs(nBc%gt%d))
+         nBc%gt%qi   = oBc%gt%qi
+         nBc%gt%qs   = oBc%gt%qs
+
+         ALLOCATE(nBc%gt%r(nBc%gt%d,nBc%gt%n))
+         ALLOCATE(nBc%gt%i(nBc%gt%d,nBc%gt%n))
+         nBc%gt%r    = oBc%gt%r
+         nBc%gt%i    = oBc%gt%i
+      END IF
+
+!     Copy RCR data structure
+      nBc%RCR%Rp = oBc%RCR%Rp
+      nBc%RCR%C  = oBc%RCR%C
+      nBc%RCR%Rd = oBc%RCR%Rd
+      nBc%RCR%Pd = oBc%RCR%Pd
+      nBc%RCR%Xo = oBc%RCR%Xo
+
+!     Copy cap data fields
+      nBc%capName = oBc%capName
+      nBc%iCapBC  = oBc%iCapBC
+
+      RETURN
       END SUBROUTINE COPYBC
 !####################################################################
