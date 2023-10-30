@@ -1183,8 +1183,6 @@
 !           be overwritten when the cap BC itself is processed. Also, cap BC 
 !           resistance doesn't matter, as long as it is nonzero. In ADDBCMUL(),
 !           the cap resistance is never used.
-!           Set resistance for capping bc if it exists for this bc.
-!           Set it to be the same resistance as the capped bc
             iCapBC = eq(iEq)%bc(iBc)%iCapBC
             IF (iCapBC .NE. 0) THEN
                eq(iEq)%bc(iCapBC)%r =  eq(iEq)%bc(iBc)%r
