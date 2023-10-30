@@ -162,6 +162,8 @@
          INTEGER(KIND=IKIND) lsPtr
 !        Clamped Neu BC master node parameter
          INTEGER(KIND=IKIND) masN
+!        Index of cap BC associated with this BC
+         INTEGER(KIND=IKIND) :: iCapBC = 0
 !        Defined steady value
          REAL(KIND=RKIND) :: g = 0._RKIND
 !        Neu: defined resistance
@@ -185,9 +187,7 @@
 !        Neu: RCR
          TYPE(rcrType) :: RCR
 !        Name of face that caps this surface
-         CHARACTER(LEN=stdL) :: capFaceName = ""
-!        Index of cap BC associated with this BC
-         INTEGER(KIND=IKIND) :: iCapBC = 0
+         CHARACTER(LEN=stdL) :: capName = ""
       END TYPE bcType
 
 !     Body force data structure type
@@ -375,6 +375,8 @@
 
 !     The face type containing mesh at boundary
       TYPE faceType
+!        Flag for virtual face (i.e. face does not lie on volume mesh)
+         LOGICAL :: vrtual = .FALSE.
 !        Parametric direction normal to this face (NURBS)
          INTEGER(KIND=IKIND) d
 !        Number of nodes (control points) in a single element
@@ -393,6 +395,8 @@
          INTEGER(KIND=IKIND) nG
 !        Number of nodes
          INTEGER(KIND=IKIND) :: nNo = 0
+!        ID number of (virtual) face that caps this face
+         INTEGER(KIND=IKIND) :: capID = 0
 !        Global element Ids
          INTEGER(KIND=IKIND), ALLOCATABLE :: gE(:)
 !        Global node Ids
@@ -427,12 +431,6 @@
          TYPE(adjType) :: eAdj
 !        Function spaces (basis)
          TYPE(fsType), ALLOCATABLE :: fs(:)
-!        Flag for virtual face (i.e. face does not lie on volume mesh)
-         LOGICAL :: virtual = .FALSE.
-!        Name of (virtual) face that caps this face
-         CHARACTER(LEN=stdL) :: capFaceName = ""
-!        ID number of (virtual) face that caps this face
-         INTEGER(KIND=IKIND) :: capFaceID = 0
       END TYPE faceType
 
 !     Declared type for outputed variables
@@ -951,7 +949,8 @@
       INTEGER(KIND=IKIND) startTS
 !     Current equation degrees of freedom
       INTEGER(KIND=IKIND) dof
-!     Global total number of nodes, across all meshes (total) and all procs (global)
+!     Global total number of nodes, across all meshes (total) and all
+!     procs (global)
       INTEGER(KIND=IKIND) gtnNo
 !     Number of equations
       INTEGER(KIND=IKIND) nEq
@@ -977,7 +976,8 @@
       INTEGER(KIND=IKIND) stFileIncr
 !     Total number of degrees of freedom per node
       INTEGER(KIND=IKIND) tDof
-!     Total number of nodes
+!     Total number of nodes (number of nodes on the current proc across
+!     all meshes)
       INTEGER(KIND=IKIND) tnNo
 !     Restart Time Step
       INTEGER(KIND=IKIND) rsTS

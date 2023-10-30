@@ -48,14 +48,14 @@
 !--------------------------------------------------------------------
 
       SUBROUTINE FSILS_BC_CREATE (lhs, faIn, nNo, dof, BC_type, gNodes, &
-     &   Val, virtual)
+     &   Val, vrtual)
       INCLUDE "FSILS_STD.h"
       TYPE(FSILS_lhsType), INTENT(INOUT) :: lhs
       INTEGER(KIND=LSIP), INTENT(IN) :: faIn, nNo, dof
       INTEGER(KIND=LSIP), INTENT(IN) :: BC_type
       INTEGER(KIND=LSIP), INTENT(IN) :: gNodes(nNo)
       REAL(KIND=LSRP), INTENT(IN), OPTIONAL :: Val(dof,nNo)
-      LOGICAL, INTENT(IN), OPTIONAL :: virtual
+      LOGICAL, INTENT(IN), OPTIONAL :: vrtual
 
       INTEGER(KIND=LSIP) a, Ac, i
 
@@ -77,21 +77,19 @@
          STOP "FSILS: FATAL ERROR"
       END IF
 
+      lhs%face(faIn)%foC  = .TRUE.
       lhs%face(faIn)%nNo  = nNo
       lhs%face(faIn)%dof  = dof
       lhs%face(faIn)%bGrp = BC_type
 
 !     Set virtual flag for lhs%face if virtual flag is provided
-      lhs%face(faIn)%virtual = .FALSE.
-      IF (PRESENT(virtual)) lhs%face(faIn)%virtual = virtual
-
+      lhs%face(faIn)%vrtual = .FALSE.
+      IF (PRESENT(vrtual)) lhs%face(faIn)%vrtual = vrtual
 
       ALLOCATE(lhs%face(faIn)%glob(nNo), lhs%face(faIn)%val(dof,nNo),   &
      &   lhs%face(faIn)%valM(dof,nNo))
 
       DO a=1, nNo
-!        gNodes(a) gives the proc local node id of face node a. gNodes(a) in 1:tnNo
-!        map() gives a reordering of proc local node ids, I think map(a) in 1:tnNo
          Ac = lhs%map(gNodes(a))
          lhs%face(faIn)%glob(a) = Ac
       END DO
@@ -109,12 +107,12 @@
          a = 0
          IF (lhs%face(faIn)%nNo .NE. 0) a = 1
          CALL MPI_ALLREDUCE(a, Ac, 1, mpint, MPI_SUM, lhs%commu%comm, i)
-         IF (Ac .GT. 1) THEN ! This face is shared by multiple procs
+         IF (Ac .GT. 1) THEN
             lhs%face(faIn)%sharedFlag = .TRUE.
             IF (.NOT.ALLOCATED(v)) ALLOCATE(v(dof,lhs%nNo))
             v = 0._LSRP
-            DO a=1, nNo ! Loop over nodes on face on this proc
-               Ac = lhs%face(faIn)%glob(a) ! Ac in 1:tnNo
+            DO a=1, nNo
+               Ac = lhs%face(faIn)%glob(a)
                v(:,Ac) = lhs%face(faIn)%val(:,a)
             END DO
             CALL FSILS_COMMUV(lhs, dof, v)
@@ -223,89 +221,42 @@
       END SUBROUTINE FSILS_BC_FREE
 !####################################################################
 !     AB 5/16/22:
-!     Update and communicate lhs%face%val with new values provided by Val
-!     Val the surface integrals in the resistance BC contribution 
+!     Update lhs%face%val with new values provided by Val.
+!     Val the surface integrals in the resistance BC contribution
 !     to the tangent matrix. Since FSILS_BC_CREATE() was already called
 !     at initialization, we don't need to reallocate data structures.
-      SUBROUTINE FSILS_BC_UPDATE (lhs, faIn, nNo, dof, BC_type, gNodes, &
-     &   Val)
+      SUBROUTINE FSILS_BC_UPDATE (lhs, faIn, nNo, dof, BC_type, Val)
       INCLUDE "FSILS_STD.h"
       TYPE(FSILS_lhsType), INTENT(INOUT) :: lhs
       INTEGER(KIND=LSIP), INTENT(IN) :: faIn, nNo, dof
       INTEGER(KIND=LSIP), INTENT(IN) :: BC_type
-      INTEGER(KIND=LSIP), INTENT(IN) :: gNodes(nNo)
-      REAL(KIND=LSRP), INTENT(IN), OPTIONAL :: Val(dof,nNo)
+      REAL(KIND=LSRP), INTENT(IN) :: Val(dof,nNo)
 
       INTEGER(KIND=LSIP) a, Ac, i
 
       REAL(KIND=LSRP), ALLOCATABLE :: v(:,:)
 
-      IF (faIn .GT. lhs%nFaces) THEN
-         PRINT *, "FSILS: faIn is exceeding lhs structure maximum",     &
-     &      " number of face:", lhs%nFaces, " .LT. ", faIn
-         STOP "FSILS: FATAL ERROR"
-      END IF
-      IF (faIn .LE. 0) THEN
-         PRINT *, "FSILS: faIn should be greater than zero"
-         STOP "FSILS: FATAL ERROR"
-      END IF
-
-      IF (lhs%face(faIn)%foC) THEN
-         PRINT *, "FSILS: face is not free, you may use FSILS_BC_FREE", &
-     &      " to free it"
-         STOP "FSILS: FATAL ERROR"
-      END IF
-
-!      These data are already set and allocated in FSILS_BC_CREATE(), so
-!      we don't need to do it again (and we can't allocate again)
-!      lhs%face(faIn)%nNo  = nNo
-!      lhs%face(faIn)%dof  = dof
-!      lhs%face(faIn)%bGrp = BC_type
-
-!     Set virtual flag for lhs%face if virtual flag is provided
-!      lhs%face(faIn)%virtual = .FALSE.
-!      IF (PRESENT(virtual)) lhs%face(faIn)%virtual = virtual
-
-
-!      ALLOCATE(lhs%face(faIn)%glob(nNo), lhs%face(faIn)%val(dof,nNo),   &
-!     &   lhs%face(faIn)%valM(dof,nNo))
-
-!     Get global node numbers
+!     Set lhs%face%val to Val input
       DO a=1, nNo
-         Ac = lhs%map(gNodes(a))
-         lhs%face(faIn)%glob(a) = Ac
+         lhs%face(faIn)%val(:,a) = Val(:,a)
       END DO
 
-!     Set lhs%face%val to Val input
-      IF (PRESENT(Val)) THEN
-         DO a=1, nNo
-            lhs%face(faIn)%val(:,a) = Val(:,a)
-         END DO
-      ELSE
-         lhs%face(faIn)%val = 0._LSRP
-      END IF
-
 !     Communicate update among procs
-      IF (lhs%commu%nTasks .GT. 1) THEN
-         a = 0
-         IF (lhs%face(faIn)%nNo .NE. 0) a = 1
-         CALL MPI_ALLREDUCE(a, Ac, 1, mpint, MPI_SUM, lhs%commu%comm, i)
-         IF (Ac .GT. 1) THEN
-            lhs%face(faIn)%sharedFlag = .TRUE.
-            IF (.NOT.ALLOCATED(v)) ALLOCATE(v(dof,lhs%nNo))
-            v = 0._LSRP
-            DO a=1, nNo
-               Ac = lhs%face(faIn)%glob(a)
-               v(:,Ac) = lhs%face(faIn)%val(:,a)
-            END DO
-            CALL FSILS_COMMUV(lhs, dof, v)
+      IF (lhs%face(faIn)%sharedFlag) THEN
+         ALLOCATE(v(dof,lhs%nNo))
+         v = 0._LSRP
+         DO a=1, nNo
+            Ac = lhs%face(faIn)%glob(a)
+            v(:,Ac) = lhs%face(faIn)%val(:,a)
+         END DO
+         CALL FSILS_COMMUV(lhs, dof, v)
 
-            DO a=1, nNo
-               Ac = lhs%face(faIn)%glob(a)
-               lhs%face(faIn)%val(:,a) = v(:,Ac)
-            END DO
-         END IF
+         DO a=1, nNo
+            Ac = lhs%face(faIn)%glob(a)
+            lhs%face(faIn)%val(:,a) = v(:,Ac)
+         END DO
       END IF
 
       RETURN
       END SUBROUTINE FSILS_BC_UPDATE
+!####################################################################

@@ -112,7 +112,7 @@
 !        Neu W*Sai                      (TMP)
          REAL(KIND=LSRP), ALLOCATABLE :: valM(:,:)
 !        Flag for virtual face        (USE)
-         LOGICAL :: virtual = .FALSE.
+         LOGICAL :: vrtual = .FALSE.
 !        Index of mesh in msh(:) associated with this face
          INTEGER(KIND=LSIP) :: iM = 0
 !        Index of face in msh(iM)%fa(:) associated with this face

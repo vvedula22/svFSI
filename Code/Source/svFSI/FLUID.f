@@ -1289,8 +1289,8 @@
       REAL(KIND=RKIND) T1, wl, hc(nsd), udn, u(nsd)
 
       wl  = w*eq(cEq)%af*eq(cEq)%gam*dt
-      
-!     Compute u dot n for backflow stabilization method 
+
+!     Compute (u.n) for backflow stabilization
 !     (e.g. Moghadam et al. 2013 Section 2.2.1)
       udn = 0._RKIND
       IF (mvMsh) THEN
@@ -1313,11 +1313,12 @@
 !     Here the loop is started for constructing left and right hand side
 !     Add Neumann BC contributions to residual (lR) and stiffness (lK).
 !     These include both backflow stabilization and boundary pressure.
-!     Note, if the boundary is a coupled or resistance boundary, the boundary
-!     pressure is added to the residual here, but the boundary resistance 
-!     (Moghadam et al, 2013, eq. 27) is not explicitly added to the tangent here. 
-!     The resistance is accounted for by the ADDBCMUL() function within the 
-!     linear solve.
+
+!     Note, if the boundary is a coupled or resistance boundary, the
+!     boundary pressure is added to the residual here, but the coupled
+!     boundary resistance (Moghadam et al, 2013, eq. 27) is not
+!     explicitly added to the tangent here. The resistance is accounted
+!     for by the ADDBCMUL() function within the linear solver.
       IF (nsd .EQ. 2) THEN
          DO a=1, eNoN
             lR(1,a) = lR(1,a) - w*N(a)*hc(1)
@@ -1330,13 +1331,11 @@
          END DO
       ELSE
          DO a=1, eNoN
-!           Add contribution of backflow stabilization and Neumann/coupled BC
             lR(1,a) = lR(1,a) - w*N(a)*hc(1)
             lR(2,a) = lR(2,a) - w*N(a)*hc(2)
             lR(3,a) = lR(3,a) - w*N(a)*hc(3)
             DO b=1, eNoN
-!              ? Where is the coupling term added to the tangent matrix (Moghadam 2013 eq 27)?
-               T1 = wl*N(a)*N(b)*udn ! This is only the backflow stabilization contribution
+               T1 = wl*N(a)*N(b)*udn
                lK(1,a,b)  = lK(1,a,b)  - T1
                lK(6,a,b)  = lK(6,a,b)  - T1
                lK(11,a,b) = lK(11,a,b) - T1
