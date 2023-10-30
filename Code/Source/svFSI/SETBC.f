@@ -1103,7 +1103,6 @@
 !              Add velocity flux from cap if face is capped
 !              This assumes that normals on cap are inward facing (same 
 !              orientation as surface being capped)
-               iFaCap = msh(iM)%fa(iFa)%capFaceID
                iFaCap = msh(iM)%fa(iFa)%capID
                IF (iFaCap .NE. 0) THEN ! If face is capped
                   cplBC%fa(ptr)%Qo = cplBC%fa(ptr)%Qo +
