@@ -135,8 +135,7 @@
       RETURN
       END FUNCTION OPENFILE
 !####################################################################
-!     This function will compute second NORM of a vector
-!     Computes U.U or U.V
+!     This function will compute second NORM of a vector (U.U or U.V)
       PURE FUNCTION NORMS(U, V)
       IMPLICIT NONE
       REAL(KIND=RKIND), INTENT(IN) :: U(:)
@@ -160,6 +159,7 @@
       RETURN
       END FUNCTION NORMS
 !--------------------------------------------------------------------
+!     This function will compute second NORM of an array (U.U or U.V)
       PURE FUNCTION NORMV(U, V)
       IMPLICIT NONE
       REAL(KIND=RKIND), INTENT(IN) :: U(:,:)

@@ -110,8 +110,8 @@
             END IF
          END DO
 
-!        For FSI, fluid domain should be in the current configuration, so add 
-!        fluid mesh displacements to node points
+!        For FSI, fluid domain should be in the current configuration,
+!        so add fluid mesh displacements to point coordinates
          IF (cPhys .EQ. phys_fluid) THEN
             xl(:,:) = xl(:,:) + dl(nsd+2:2*nsd+1,:)
          END IF
