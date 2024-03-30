@@ -3397,7 +3397,7 @@ c     2         "can be applied for Neumann boundaries only"
 !#######################################################################
 !     Adds a bc to lEq%bc(:) at the end for a cap. Copies most of the bc
 !     info from lEq%bc(iBc), which corresponds to the capped surface.
-!     Also, sets info about caping face in capped face (capName
+!     Also, sets info about capping face in capped face (capName
 !     and capID fields)
       SUBROUTINE ADDCAPBC(lEq, iBc)
       USE COMMOD
@@ -3411,13 +3411,13 @@ c     2         "can be applied for Neumann boundaries only"
 
 !     We are adding a new BC for the cap, so we need to update the
 !     the relevant structures
-
 !     Store old BCs in oldBcs
       ALLOCATE(oldBcs(lEq%nBc))
       DO jBc=1, lEq%nBc
          CALL COPYBC(lEq%bc(jBc), oldBcs(jBc))
          CALL DESTROY(lEq%bc(jBc))
       END DO
+
 !     Increment number of BCs
       lEq%nBc = lEq%nBc + 1
 
@@ -3460,7 +3460,7 @@ c     2         "can be applied for Neumann boundaries only"
       TYPE(bcType), INTENT(IN) :: oBc
       TYPE(bcType), INTENT(OUT) :: nBc
 
-      INTEGER(KIND=IKIND) jBc, iFa, iM
+      INTEGER(KIND=IKIND) iFa, iM
 
 !     Copy bool, integers, and real values
       nBc%weakDir  = oBc%weakDir

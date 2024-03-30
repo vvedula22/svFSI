@@ -390,7 +390,7 @@
          lK = 0._RKIND
          lR = 0._RKIND
          DO g=1, lFa%nG
-            CALL GNNB(lFa, e, g, nsd-1, eNoN, lFa%Nx(:,:,g), nV)
+            CALL GNNB(lFa, e, g, nsd-1, eNoN, lFa%Nx(:,:,g), nV, 'r')
             Jac = SQRT(NORM(nV))
             w   = lFa%w(g)*Jac
             N   = lFa%N(:,g)
@@ -467,7 +467,7 @@
          lR  = 0._RKIND
          lKd = 0._RKIND
          DO g=1, lFa%nG
-            CALL GNNB(lFa, e, g, nsd-1, eNoN, lFa%Nx(:,:,g), nV)
+            CALL GNNB(lFa, e, g, nsd-1, eNoN, lFa%Nx(:,:,g), nV, 'r')
             Jac = SQRT(NORM(nV))
             nV  = nV/Jac
             w   = lFa%w(g) * Jac
@@ -925,7 +925,7 @@
 
 !        Gauss integration 1
          DO g=1, lFa%nG
-            CALL GNNB(lFa, e, g, nsd-1, eNoNb, lFa%Nx(:,:,g), nV)
+            CALL GNNB(lFa, e, g, nsd-1, eNoNb, lFa%Nx(:,:,g), nV, 'r')
             Jac = SQRT(NORM(nV))
             nV  = nV/Jac
             w   = lFa%w(g) * Jac
@@ -1104,9 +1104,9 @@
                iFaCap = msh(iM)%fa(iFa)%capID
                IF (iFaCap .NE. 0) THEN ! If face is capped
                   cplBC%fa(ptr)%Qo = cplBC%fa(ptr)%Qo +
-     2                  Integ(msh(iM)%fa(iFaCap), Yo, 1, nsd, cfgin='o')
+     2               Integ(msh(iM)%fa(iFaCap), Yo, 1, nsd, cfgin='o')
                   cplBC%fa(ptr)%Qn = cplBC%fa(ptr)%Qn +
-     2                  Integ(msh(iM)%fa(iFaCap), Yn, 1, nsd, cfgin='n')
+     2               Integ(msh(iM)%fa(iFaCap), Yn, 1, nsd, cfgin='n')
                END IF
 
                cplBC%fa(ptr)%Po = 0._RKIND

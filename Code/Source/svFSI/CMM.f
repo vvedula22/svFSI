@@ -223,7 +223,7 @@
 
 !     Inertia and body forces (mass) contribution
       DO g=1, lFa%nG
-         CALL GNNB(lFa, e, g, nsd-1, 3, lFa%Nx(:,:,g), nV)
+         CALL GNNB(lFa, e, g, nsd-1, 3, lFa%Nx(:,:,g), nV, 'r')
          Jac = SQRT(NORM(nV))
          nV  = nV / Jac
          w   = lFa%w(g)*Jac

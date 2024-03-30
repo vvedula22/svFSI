@@ -1884,7 +1884,7 @@ c        N(8) = lx*my*0.5_RKIND
 !        - cfg = 'r', reference configuration
 !        - cfg = 'o', old configuration (at timestep n)
 !        - cfg = 'n', new configuration (at timestep n+1)
-      SUBROUTINE GNNB(lFa, e, g, insd, eNoNb, Nx, n, cfgin)
+      SUBROUTINE GNNB(lFa, e, g, insd, eNoNb, Nx, n, cfg)
       USE COMMOD
       USE ALLFUN
       IMPLICIT NONE
@@ -1892,11 +1892,10 @@ c        N(8) = lx*my*0.5_RKIND
       REAL(KIND=RKIND), INTENT(IN) :: Nx(insd,eNoNb)
       REAL(KIND=RKIND), INTENT(OUT) :: n(nsd)
       TYPE(faceType), INTENT(IN) :: lFa
-      CHARACTER, OPTIONAL :: cfgin
+      CHARACTER, INTENT(IN) :: cfg
 
       INTEGER(KIND=IKIND) a, b, i, is, ie, Ac, Bc, Ec, iM, eNoN
       REAL(KIND=RKIND) v(nsd)
-      CHARACTER cfg
 
       LOGICAL, ALLOCATABLE :: setIt(:)
       INTEGER(KIND=IKIND), ALLOCATABLE :: ptr(:)
@@ -1906,23 +1905,18 @@ c        N(8) = lx*my*0.5_RKIND
       Ec   = lFa%gE(e)
       eNoN = msh(iM)%eNoN
 
-!     If cfg is not provided, use reference config
-      cfg = 'r'
-      is  = 1
-      IF(PRESENT(cfgin)) THEN
-         cfg = cfgin
-         DO i=1, nEq
-            IF (eq(i)%phys .EQ. phys_struct .OR.
-     2          eq(i)%phys .EQ. phys_ustruct) THEN
-               is = eq(i)%s
-               EXIT
-            END IF
-         END DO
-      END IF
+      is = 1
+      DO i=1, nEq
+         IF (eq(i)%phys .EQ. phys_struct .OR.
+     2       eq(i)%phys .EQ. phys_ustruct) THEN
+            is = eq(i)%s
+            EXIT
+         END IF
+      END DO
       ie = is+nsd-1
 
       IF (lFa%vrtual) THEN
-         CALL GNNBv(lFa, e, g, insd, eNoNb, Nx, n, cfg)
+         CALL GNNBv(lFa, e, insd, eNoNb, Nx, n, cfg)
          RETURN
       END IF
 
@@ -2057,10 +2051,10 @@ c        N(8) = lx*my*0.5_RKIND
       RETURN
       END SUBROUTINE GNNB
 !--------------------------------------------------------------------
-!     This routine returns a surface normal vector at element "e" and
-!     Gauss point "g" of a virtual face "lFa" weighted by Jac =
-!     SQRT(NORM(n)), the Jacobian of mapping from parent surface element
-!     to reference configuration.
+!     This routine returns a surface normal vector on the element "e"
+!     of a virtual face "lFa" weighted by Jac = SQRT(NORM(n)), the
+!     Jacobian of mapping from parent surface element to reference
+!     configuration.
 !
 !     For these elements, as there is no interior element, the direction
 !     of the normal vector is assumed from the nodal ordering.
@@ -2069,11 +2063,11 @@ c        N(8) = lx*my*0.5_RKIND
 !        - cfg = 'r', reference configuration
 !        - cfg = 'o', old configuration (at timestep n)
 !        - cfg = 'n', new configuration (at timestep n+1)
-      SUBROUTINE GNNBv(lFa, e, g, insd, eNoNb, Nx, n, cfg)
+      SUBROUTINE GNNBv(lFa, e, insd, eNoNb, Nx, n, cfg)
       USE COMMOD
       USE ALLFUN
       IMPLICIT NONE
-      INTEGER(KIND=IKIND), INTENT(IN) :: e, g, insd, eNoNb
+      INTEGER(KIND=IKIND), INTENT(IN) :: e, insd, eNoNb
       REAL(KIND=RKIND), INTENT(IN) :: Nx(insd,eNoNb)
       REAL(KIND=RKIND), INTENT(OUT) :: n(nsd)
       TYPE(faceType), INTENT(IN) :: lFa

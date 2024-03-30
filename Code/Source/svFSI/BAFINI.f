@@ -259,7 +259,8 @@
          DO e=1, lFa%nEl
             IF (lFa%eType .EQ. eType_NRB) CALL NRBNNXB(lM, lFa, e)
             DO g=1, lFa%nG
-               CALL GNNB(lFa, e, g, nsd-1, lFa%eNoN, lFa%Nx(:,:,g), nV)
+               CALL GNNB(lFa, e, g, nsd-1, lFa%eNoN, lFa%Nx(:,:,g), nV,
+     2            'r')
                DO a=1, lFa%eNoN
                   Ac = lFa%IEN(a,e)
 !                 Ac could equal zero on a virtual face
@@ -587,7 +588,8 @@
             DO e=1, lFa%nEl
                IF (lFa%eType .EQ. eType_NRB) CALL NRBNNXB(msh(iM),lFa,e)
                DO g=1, lFa%nG
-                  CALL GNNB(lFa, e, g, nsd-1, lFa%eNoN, lFa%Nx(:,:,g),n)
+                  CALL GNNB(lFa, e, g, nsd-1, lFa%eNoN, lFa%Nx(:,:,g),
+     2               n, 'r')
                   DO a=1, lFa%eNoN
                      Ac = lFa%IEN(a,e)
 !                    For a virtual face, Ac can be 0

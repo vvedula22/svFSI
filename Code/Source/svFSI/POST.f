@@ -518,7 +518,7 @@
       REAL(KIND=RKIND) w, Jac, detF, Je, tmX, ya, Ja, elM, nu, lambda,
      2   mu, p, trS, vmises, xi(nsd), xi0(nsd), xp(nsd), ed(nsymd),
      3   Im(nsd,nsd), F(nsd,nsd), C(nsd,nsd), Eg(nsd,nsd), P1(nsd,nsd),
-     4   S(nsd,nsd), sigma(nsd,nsd), Dm(nsymd,nsymd), I1
+     4   S(nsd,nsd), sigma(nsd,nsd), Dm(nsymd,nsymd)
       TYPE(fsType) :: fs
 
       INTEGER, ALLOCATABLE :: eNds(:)
@@ -727,7 +727,7 @@
                   END IF
                ELSE IF (outGrp .EQ. outGrp_I1) THEN
                   C  = MATMUL(TRANSPOSE(F), F)
-                  I1 = MAT_TRACE(C,nsd)
+                  resl(1) = MAT_TRACE(C,nsd)
                END IF
 
             CASE (outGrp_stress, outGrp_cauchy, outGrp_mises)
@@ -753,6 +753,7 @@
                      sigma(1,2) = mu*ed(3)
                      sigma(2,1) = sigma(1,2)
                   END IF
+                  S(:,:) = sigma(:,:)
 
                ELSE IF (cPhys .EQ. phys_ustruct) THEN
                   p = 0._RKIND

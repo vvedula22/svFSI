@@ -1497,8 +1497,8 @@ c            wrn = " ParMETIS failed to partition the mesh"
       END IF
 
 !     Now scattering the sorted lM%IEN to all processors. Data placed in
-!     lM%IEN. Now, lM%IEN maps node a of element e (local to this proc and mesh)
-!     to global node A on mesh
+!     lM%IEN. Now, lM%IEN maps node a of element e (local to this proc
+!     and mesh) to global node A on mesh
       IF (.NOT.ALLOCATED(tempIEN)) ALLOCATE(tempIEN(0,0))
       DO i=1, cm%np()
          disp(i)   = lM%eDist(i-1)*eNoN
@@ -1722,7 +1722,7 @@ c            wrn = " ParMETIS failed to partition the mesh"
 !     A virtual face cannot be partitioned as it is not part of the
 !     parent mesh entity. Treat this separately and return.
       IF (lFa%vrtual) THEN
-         CALL PARTFACEV(lM, lFa, gFa, gmtl)
+         CALL PARTFACEV(lFa, gFa, gmtl)
          RETURN
       END IF
 
@@ -1823,15 +1823,14 @@ c            wrn = " ParMETIS failed to partition the mesh"
 !--------------------------------------------------------------------
 !     This routine partitions a virtual face. Since a virtual face is
 !     not part of a mesh entity, it will be treated separately.
-      SUBROUTINE PARTFACEV(lM, lFa, gFa, gmtl)
+      SUBROUTINE PARTFACEV(lFa, gFa, gmtl)
       USE COMMOD
       USE ALLFUN
       IMPLICIT NONE
-      TYPE(mshType), INTENT(INOUT) :: lM
       TYPE(faceType), INTENT(INOUT) :: lFa, gFa
       INTEGER(KIND=IKIND), INTENT(IN) :: gmtl(gtnNo)
 
-      INTEGER(KIND=IKIND) eNoNb, e, a, Ac, Ec, i, j, iM
+      INTEGER(KIND=IKIND) eNoNb, e, a, Ac, i, j, iM
 
       INTEGER(KIND=IKIND), ALLOCATABLE :: part(:), ePtr(:)
 
