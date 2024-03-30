@@ -650,8 +650,8 @@
                   DEALLOCATE(tmpV, tmpVe)
                   ALLOCATE(tmpV(maxnsd,msh(iM)%nNo))
 
-               CASE (outGrp_J, outGrp_F, outGrp_strain, outGrp_fS,
-     2               outGrp_C, outGrp_I1 )
+               CASE (outGrp_J, outGrp_F, outGrp_strain, outGrp_Ya,
+     2               outGrp_C, outGrp_I1)
                   IF (ALLOCATED(tmpV)) DEALLOCATE(tmpV)
                   ALLOCATE(tmpV(l,msh(iM)%nNo), tmpVe(msh(iM)%nEl))
                   tmpV  = 0._RKIND
@@ -685,6 +685,22 @@
                   END IF
 
                   DEALLOCATE(tmpV, tmpVe)
+                  ALLOCATE(tmpV(maxnsd,msh(iM)%nNo))
+
+               CASE (outGrp_I4f)
+                  IF (ALLOCATED(tmpV)) DEALLOCATE(tmpV)
+                  ALLOCATE(tmpV(1,msh(iM)%nNo))
+                  tmpV = 0._RKIND
+
+                  IF (msh(iM)%fib%nFn .NE. 0) THEN
+                     CALL FIBSTRETCH(iEq, msh(iM), lD, tmpV)
+                  END IF
+
+                  DO a=1, msh(iM)%nNo
+                     d(iM)%x(is,a) = tmpV(1,a)
+                  END DO
+
+                  DEALLOCATE(tmpV)
                   ALLOCATE(tmpV(maxnsd,msh(iM)%nNo))
 
                CASE (outGrp_divV)

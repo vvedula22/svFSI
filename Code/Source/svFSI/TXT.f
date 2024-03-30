@@ -121,7 +121,7 @@
                END DO
                l = 1
             CASE (outGrp_eFlx, outGrp_hFlx, outGrp_divV, outGrp_J,
-     2         outGrp_Mises, outGrp_fS)
+     2         outGrp_Mises, outGrp_Ya)
                CALL ALLPOST(tmpV, Yn, Dn, oGrp, iEq)
             CASE (outGrp_absV)
                DO a=1, tnNo

@@ -151,10 +151,12 @@
       REAL(KIND=RKIND), INTENT(IN) :: t, dt
       REAL(KIND=RKIND), INTENT(INOUT) :: Ta
 
-      REAL(KIND=RKIND) :: sp, sm, ft, a, ap
+      REAL(KIND=RKIND) :: t1, sp, sm, ft, a, ap
 
-      sp = 0.5_RKIND*(1._RKIND + TANH((t-t_sys)/gamma))
-      sm = 0.5_RKIND*(1._RKIND - TANH((t-t_dia)/gamma))
+      t1 = MOD(t, t_CL)
+
+      sp = 0.5_RKIND*(1._RKIND + TANH((t1-t_sys)/gamma))
+      sm = 0.5_RKIND*(1._RKIND - TANH((t1-t_dia)/gamma))
       ft = sp * sm
 
       a  = max_alpha*ft + min_alpha*(1._RKIND - ft)
