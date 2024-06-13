@@ -1101,6 +1101,8 @@
      2            cfgin='n')
 
 !              Add velocity flux from cap if face is capped
+!              This assumes that normals on cap are inward facing (same 
+!              orientation as surface being capped)
                iFaCap = msh(iM)%fa(iFa)%capID
                IF (iFaCap .NE. 0) THEN ! If face is capped
                   cplBC%fa(ptr)%Qo = cplBC%fa(ptr)%Qo +
@@ -1174,8 +1176,12 @@
 !           Compute finite difference approx of resistance matrix, M
             eq(iEq)%bc(iBc)%r = (cplBC%fa(i)%y - orgY(i))/diff
 
-!           Set resistance for capping bc if it exists for this bc.
-!           Set it to be the same resistance as the capped bc
+!           Set resistance for capping bc if it exists for this bc. Set it
+!           to be the same resistance as the capped bc
+!           Pretty sure this does nothing, because the cap BC resistance will
+!           be overwritten when the cap BC itself is processed. Also, cap BC 
+!           resistance doesn't matter, as long as it is nonzero. In ADDBCMUL(),
+!           the cap resistance is never used.
             iCapBC = eq(iEq)%bc(iBc)%iCapBC
             IF (iCapBC .NE. 0) THEN
                eq(iEq)%bc(iCapBC)%r =  eq(iEq)%bc(iBc)%r
